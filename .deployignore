@@ -1,0 +1,11 @@
+# Файлы которые НЕ нужно загружать на сервер
+node_modules/
+.next/
+.git/
+.cursor/
+terminals/
+agent-tools/
+*.log
+.env.local
+.DS_Store
+
