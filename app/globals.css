@@ -2,6 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Новогодняя анимация снежинок */
+@keyframes snow {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.animate-snow {
+  animation: snow linear infinite;
+}
+
+/* Анимация новогодней гирлянды */
+@keyframes garland-light {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.animate-garland-light {
+  animation: garland-light 1.5s ease-in-out infinite;
+}
+
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 255, 255, 255;

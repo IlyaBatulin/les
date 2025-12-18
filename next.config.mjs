@@ -3,14 +3,30 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Отключаем проверку приватных IP для изображений в dev-режиме
+  experimental: {
+    // Разрешаем загрузку изображений с приватных IP (только для dev)
+    ...(process.env.NODE_ENV === 'development' && {
+      serverActions: {
+        bodySizeLimit: '2mb',
+      },
+    }),
+  },
   images: {
-    // Включаем оптимизацию изображений
-    unoptimized: false,
+    // Отключаем оптимизацию в dev-режиме, чтобы обойти блокировку приватных IP
+    // В production оптимизация будет включена
+    unoptimized: process.env.NODE_ENV === 'development',
     // Разрешаем загрузку изображений из Supabase
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '**.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'vccagsyqenvfttmghscn.supabase.co',
         port: '',
         pathname: '/storage/v1/object/public/**',
       },

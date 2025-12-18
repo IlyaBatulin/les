@@ -44,6 +44,18 @@ export default function Header() {
   const router = useRouter()
   const { totalItems, isCartOpen, setIsCartOpen } = useCart()
   const [hoveredCategory, setHoveredCategory] = useState<number | null>(null)
+  const [snowflakes, setSnowflakes] = useState<Array<{ left: string; top: string; delay: string; duration: string }>>([])
+
+  // Генерация снежинок только на клиенте, чтобы избежать hydration mismatch
+  useEffect(() => {
+    const flakes = Array.from({ length: 20 }, () => ({
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 5}s`,
+      duration: `${3 + Math.random() * 4}s`,
+    }))
+    setSnowflakes(flakes)
+  }, [])
 
   // Загрузка категорий при монтировании компонента
   useEffect(() => {
@@ -305,8 +317,56 @@ export default function Header() {
   };
 
   return (
-    <header className="w-full bg-white text-gray-800 shadow-md sticky top-0 z-50">
-      <div className="container mx-auto flex items-center justify-between py-3 px-4">
+    <header className="w-full bg-gradient-to-r from-red-100 via-white to-green-100 text-gray-800 shadow-md sticky top-0 z-[100] relative">
+      {/* Новогодний фон с узором */}
+      <div className="absolute inset-0 pointer-events-none opacity-10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(220,38,38,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(34,197,94,0.1),transparent_50%)]"></div>
+      </div>
+      
+      {/* Новогодние снежинки - рендерятся только на клиенте */}
+      {snowflakes.length > 0 && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {snowflakes.map((flake, i) => (
+            <div
+              key={i}
+              className="absolute text-white/30 text-xs animate-snow"
+              style={{
+                left: flake.left,
+                top: flake.top,
+                animationDelay: flake.delay,
+                animationDuration: flake.duration,
+              }}
+            >
+              ❄
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Новогодняя гирлянда */}
+      <div className="absolute bottom-0 left-0 right-0 h-1 pointer-events-none z-0">
+        <div className="flex justify-between items-center h-full px-4">
+          {[...Array(15)].map((_, i) => (
+            <div
+              key={i}
+              className="relative"
+              style={{
+                animationDelay: `${i * 0.2}s`,
+              }}
+            >
+              <div className="w-3 h-3 rounded-full animate-garland-light" style={{
+                backgroundColor: i % 3 === 0 ? '#ef4444' : i % 3 === 1 ? '#22c55e' : '#fbbf24',
+                boxShadow: `0 0 8px ${i % 3 === 0 ? '#ef4444' : i % 3 === 1 ? '#22c55e' : '#fbbf24'}`,
+              }}></div>
+              {i < 14 && (
+                <div className="absolute top-1/2 left-3 w-8 h-0.5 bg-gradient-to-r from-red-400 via-green-400 to-yellow-400 transform -translate-y-1/2"></div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="container mx-auto flex items-center justify-between py-3 px-4 relative z-30">
         <div className="flex items-center gap-4">
           <div className="lg:hidden">
             <MobileNav categories={mainCategories} menuIconClassName="text-black" />
@@ -317,14 +377,16 @@ export default function Header() {
                 alt="ВЫБОР+" 
                 className="h-12 mr-3" 
               />
-            <span className="text-xl font-bold text-green-600">ВЫБОР+</span>
+            <span className="text-xl font-bold bg-gradient-to-r from-red-600 via-green-600 to-red-600 bg-clip-text text-transparent animate-pulse">
+              ВЫБОР+
+            </span>
           </Link>
         </div>
 
         <div className="hidden lg:flex items-center space-x-6">
-          <div ref={catalogRef} className="relative">
+          <div ref={catalogRef} className="relative z-[10001]">
             <button 
-              className="flex items-center gap-1 font-medium hover:text-green-600 transition-colors"
+              className="flex items-center gap-1 font-medium hover:text-red-600 transition-colors relative z-30"
               onClick={toggleCatalog}
               onMouseEnter={() => setShowCatalog(true)}
             >
@@ -333,7 +395,7 @@ export default function Header() {
             
             {showCatalog && (
               <div 
-                className="absolute left-0 top-full mt-1 bg-white shadow-lg rounded-md z-50 flex w-[900px]"
+                className="absolute left-0 top-full mt-1 bg-white shadow-lg rounded-md z-[10002] flex w-[900px]"
                 onMouseLeave={() => setShowCatalog(false)}
               >
                 {/* Первая колонка - основные категории */}
@@ -395,23 +457,23 @@ export default function Header() {
           </div>
           
           
-          <Link href="/delivery" className="font-medium hover:text-green-600 transition-colors">
+          <Link href="/delivery" className="font-medium hover:text-red-600 transition-colors">
             Доставка
           </Link>
           
-          <Link href="/contacts" className="font-medium hover:text-green-600 transition-colors">
+          <Link href="/contacts" className="font-medium hover:text-red-600 transition-colors">
             Контакты
           </Link>
           <div className="flex items-center space-x-4">
             <div className="flex flex-col items-start space-y-1">
-              <a href="tel:+7 (495) 077-97-79" className="text-sm text-gray-600 hover:text-green-600 font-bold">
+              <a href="tel:+7 (495) 077-97-79" className="text-sm text-gray-600 hover:text-red-600 font-bold">
                 +7 (495) 077-97-79
               </a>
-              <a href="tel:+7 (926) 777-97-79" className="text-sm text-gray-600 hover:text-green-600 font-bold">
+              <a href="tel:+7 (926) 777-97-79" className="text-sm text-gray-600 hover:text-red-600 font-bold">
                 +7 (926) 777-97-79
               </a>
             </div>
-            <a href="mailto:zakaz@vyborplus.ru" className="text-sm text-gray-600 hover:text-green-600 font-bold">
+            <a href="mailto:zakaz@vyborplus.ru" className="text-sm text-gray-600 hover:text-red-600 font-bold">
               zakaz@vyborplus.ru
             </a>
           </div>
@@ -501,12 +563,12 @@ export default function Header() {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="relative text-gray-800 hover:text-green-600 hover:bg-gray-100" 
+            className="relative text-gray-800 hover:text-red-600 hover:bg-gray-100" 
             onClick={() => setIsCartOpen(true)}
           >
             <ShoppingCart className="h-5 w-5" />
             {totalItems > 0 && (
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-green-600 text-white text-xs">
+              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-gradient-to-r from-red-600 to-green-600 text-white text-xs animate-pulse">
                 {totalItems}
               </Badge>
             )}

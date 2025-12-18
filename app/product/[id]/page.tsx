@@ -3,28 +3,36 @@ import { createServerSupabaseClient } from "@/lib/supabase"
 import { ProductPageClient } from "@/components/product-page-client"
 
 interface ProductPageProps {
-  params: {
+  params: Promise<{
+    id: string
+  }> | {
     id: string
   }
 }
 
 async function getProduct(id: string) {
-  const supabase = createServerSupabaseClient()
+  try {
+    const supabase = createServerSupabaseClient()
 
-  const { data: product, error } = await supabase
-    .from("products")
-    .select(
-      `
-      *,
-      category:categories(id, name, parent_id)
-    `,
-    )
-    .eq("id", id)
-    .single()
+    const { data: product, error } = await supabase
+      .from("products")
+      .select(
+        `
+        *,
+        category:categories(id, name, parent_id)
+      `,
+      )
+      .eq("id", id)
+      .single()
 
-  if (error || !product) {
-    return null
-  }
+    if (error) {
+      console.error("Ошибка при загрузке товара:", error)
+      return null
+    }
+
+    if (!product) {
+      return null
+    }
 
   // Получаем родительские категории для хлебных крошек
   if (product.category && product.category.parent_id) {
@@ -52,19 +60,35 @@ async function getProduct(id: string) {
     }
   }
 
-  // Получаем похожие товары из той же категории
-  const { data: relatedProducts } = await supabase
-    .from("products")
-    .select("id, name, price, image_url, unit")
-    .eq("category_id", product.category_id)
-    .neq("id", product.id)
-    .limit(4)
+    // Получаем похожие товары из той же категории
+    const { data: relatedProducts, error: relatedError } = await supabase
+      .from("products")
+      .select("id, name, price, image_url, unit")
+      .eq("category_id", product.category_id)
+      .neq("id", product.id)
+      .limit(4)
 
-  return { product, relatedProducts: relatedProducts || [] }
+    if (relatedError) {
+      console.error("Ошибка при загрузке похожих товаров:", relatedError)
+    }
+
+    return { product, relatedProducts: relatedProducts || [] }
+  } catch (error) {
+    console.error("Критическая ошибка при загрузке товара:", error)
+    return null
+  }
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const data = await getProduct(params.id)
+  // В Next.js 16 params может быть Promise, нужно await
+  const resolvedParams = params instanceof Promise ? await params : params
+  const productId = resolvedParams.id
+
+  if (!productId) {
+    notFound()
+  }
+
+  const data = await getProduct(productId)
 
   if (!data) {
     notFound()
