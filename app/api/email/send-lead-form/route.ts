@@ -12,12 +12,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Используем те же переменные, что и другие API роуты
-    const user = process.env.NEXT_PUBLIC_NODEMAILER_USER
-    const pass = process.env.NEXT_PUBLIC_NODEMAILER_PASSWORD
-    const to = process.env.NEXT_PUBLIC_NODEMAILER_TARGET
+    // Используем серверные переменные окружения (без NEXT_PUBLIC_)
+    const user = process.env.NODEMAILER_USER
+    const pass = process.env.NODEMAILER_PASSWORD
+    const to = process.env.NODEMAILER_TARGET
 
     console.log("SMTP настройки:", { user: user ? "***" : "не задан", pass: pass ? "***" : "не задан", to })
+    console.log('MAIL TO:', to)
 
     if (!user || !pass || !to) {
       return NextResponse.json(
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
     `
 
     const result = await transporter.sendMail({
-      from: `Заявка с сайта <${user}>`,
+      from: `"ВЫБОР+" <${user}>`,
       to,
       subject: `Заявка с сайта: ${name}`,
       html,

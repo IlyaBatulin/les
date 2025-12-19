@@ -10,8 +10,8 @@ export async function POST(request: Request) {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.NEXT_PUBLIC_NODEMAILER_USER,
-        pass: process.env.NEXT_PUBLIC_NODEMAILER_PASSWORD
+        user: process.env.NODEMAILER_USER!,
+        pass: process.env.NODEMAILER_PASSWORD!
       }
     });
     
@@ -35,9 +35,12 @@ export async function POST(request: Request) {
     `).join('');
     
     // Отправляем email
+    const mailTo = process.env.NODEMAILER_TARGET!
+    console.log('MAIL TO:', mailTo)
+    
     await transporter.sendMail({
-      from: `"ВЫБОР+" <${process.env.NEXT_PUBLIC_NODEMAILER_USER}>`,
-      to: process.env.NEXT_PUBLIC_NODEMAILER_TARGET,
+      from: `"ВЫБОР+" <${process.env.NODEMAILER_USER}>`,
+      to: mailTo,
       subject: `Новый заказ #${orderDetails.orderId}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
