@@ -344,28 +344,16 @@ export default function Header() {
         </div>
       )}
 
-      {/* Новогодняя гирлянда */}
-      <div className="absolute bottom-0 left-0 right-0 h-1 pointer-events-none z-0">
-        <div className="flex justify-between items-center h-full px-4">
-          {[...Array(15)].map((_, i) => (
-            <div
-              key={i}
-              className="relative"
-              style={{
-                animationDelay: `${i * 0.2}s`,
-              }}
-            >
-              <div className="w-3 h-3 rounded-full animate-garland-light" style={{
-                backgroundColor: i % 3 === 0 ? '#ef4444' : i % 3 === 1 ? '#22c55e' : '#fbbf24',
-                boxShadow: `0 0 8px ${i % 3 === 0 ? '#ef4444' : i % 3 === 1 ? '#22c55e' : '#fbbf24'}`,
-              }}></div>
-              {i < 14 && (
-                <div className="absolute top-1/2 left-3 w-8 h-0.5 bg-gradient-to-r from-red-400 via-green-400 to-yellow-400 transform -translate-y-1/2"></div>
-              )}
-            </div>
-          ))}
+      {/* Новогодняя надпись - только на десктопе */}
+      <div className="hidden lg:block absolute top-2 right-4 z-40 pointer-events-none">
+        <div className="relative">
+          <span className="text-sm font-bold bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 bg-clip-text text-transparent animate-pulse">
+            🎄 С Новым годом! 🎅
+          </span>
+          <div className="absolute -inset-1 bg-gradient-to-r from-red-500/20 via-yellow-400/20 to-green-500/20 blur-sm rounded-lg"></div>
         </div>
       </div>
+
       <div className="container mx-auto flex items-center justify-between py-3 px-4 relative z-30">
         <div className="flex items-center gap-4">
           <div className="lg:hidden">
