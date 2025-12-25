@@ -42,7 +42,7 @@ const HomeHero = () => {
 
   return (
     <section className="relative bg-gradient-to-r from-green-800 to-green-600 text-white overflow-hidden">
-      <div className="absolute inset-0 bg-[url('/images/lumber-yard.png')] opacity-10 bg-cover bg-center"></div>
+      <div className="absolute inset-0 bg-[url('/images/new-year-background.jpg')] opacity-10 bg-cover bg-center"></div>
       <div className="container mx-auto py-8 md:py-16 px-4 flex flex-col md:flex-row items-center relative z-10">
         <motion.div
           className="w-full md:w-1/2 mb-6 md:mb-0 text-center md:text-left"
