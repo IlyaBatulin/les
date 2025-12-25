@@ -344,16 +344,6 @@ export default function Header() {
         </div>
       )}
 
-      {/* Новогодняя надпись - только на десктопе */}
-      <div className="hidden lg:block absolute top-2 right-4 z-40 pointer-events-none">
-        <div className="relative">
-          <span className="text-sm font-bold bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 bg-clip-text text-transparent animate-pulse">
-            🎄 С Новым годом! 🎅
-          </span>
-          <div className="absolute -inset-1 bg-gradient-to-r from-red-500/20 via-yellow-400/20 to-green-500/20 blur-sm rounded-lg"></div>
-        </div>
-      </div>
-
       <div className="container mx-auto flex items-center justify-between py-3 px-4 relative z-30">
         <div className="flex items-center gap-4">
           <div className="lg:hidden">
