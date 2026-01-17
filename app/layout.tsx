@@ -12,14 +12,24 @@ import ReactQueryProvider from "@/components/ReactQueryProvider"
 const inter = Inter({ subsets: ["latin", "cyrillic"] })
 
 export const metadata: Metadata = {
-  title: "ВЫБОР+ | Стройматериалы",
-  description: "Больше чем стройматериалы - от фундамента до кровли",
+  title: {
+    default: "ВЫБОР+ | Пиломатериалы",
+    template: "%s | ВЫБОР+"
+  },
+  description: "Категории. ВЫБОР+. Ваш надежный поставщик пиломатериалов высокого качества с доставкой. От фундамента до кровли - все материалы для вашего строительства.",
+  keywords: "пиломатериалы, доски, брус, стройматериалы, Москва, доставка",
   icons: {
     icon: '/favicon.ico',
     apple: '/favicon.ico',
     shortcut: '/favicon.ico'
   },
-  generator: 'v0.dev'
+  generator: 'v0.dev',
+  openGraph: {
+    title: "ВЫБОР+ | Пиломатериалы",
+    description: "Категории. ВЫБОР+. Ваш надежный поставщик пиломатериалов высокого качества с доставкой.",
+    type: "website",
+    url: "https://vyborplus.ru",
+  },
 }
 
 export default function RootLayout({

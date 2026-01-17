@@ -317,7 +317,7 @@ export default function Header() {
   };
 
   return (
-    <header className="w-full bg-gradient-to-r from-red-100 via-white to-green-100 text-gray-800 shadow-md sticky top-0 z-[100] relative">
+    <header className="w-full bg-white text-gray-800 shadow-md sticky top-0 z-[100] relative">
       {/* Новогодний фон с узором */}
       <div className="absolute inset-0 pointer-events-none opacity-10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(220,38,38,0.1),transparent_50%)]"></div>
@@ -355,7 +355,7 @@ export default function Header() {
                 alt="ВЫБОР+" 
                 className="h-12 mr-3" 
               />
-            <span className="text-xl font-bold bg-gradient-to-r from-red-600 via-green-600 to-red-600 bg-clip-text text-transparent animate-pulse">
+            <span className="text-xl font-bold text-green-600">
               ВЫБОР+
             </span>
           </Link>

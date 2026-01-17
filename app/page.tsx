@@ -7,6 +7,19 @@ import HomeTestimonials from "@/components/home/home-testimonials"
 import { LeadPopup } from "@/components/lead-popup"
 import { Suspense } from "react"
 import Empty from "@/components/home/empty"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "ВЫБОР+ | Пиломатериалы",
+  description: "Категории. ВЫБОР+. Ваш надежный поставщик пиломатериалов высокого качества с доставкой. От фундамента до кровли - все материалы для вашего строительства.",
+  keywords: "пиломатериалы, доски, брус, стройматериалы, Москва, доставка",
+  openGraph: {
+    title: "ВЫБОР+ | Пиломатериалы",
+    description: "Категории. ВЫБОР+. Ваш надежный поставщик пиломатериалов высокого качества с доставкой.",
+    type: "website",
+    url: "https://vyborplus.ru",
+  },
+}
 
 // Заглушки для загрузки динамических компонентов
 function CategoriesSkeleton() {

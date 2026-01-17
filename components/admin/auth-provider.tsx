@@ -49,8 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Функция входа
   const login = (username: string, password: string) => {
-    // Проверка учетных данных (в реальном приложении это должен быть API-запрос)
-    if (username === "admin" && password === "admin123") {
+    // Проверка учетных данных из переменных окружения
+    const adminUsername = process.env.NEXT_PUBLIC_ADMIN_USERNAME || "admin"
+    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "admin123"
+    
+    if (username === adminUsername && password === adminPassword) {
       // Создаем простой токен
       const token = Date.now().toString()
       // Сохраняем токен в localStorage
