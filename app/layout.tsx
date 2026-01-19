@@ -11,6 +11,7 @@ import ReactQueryProvider from "@/components/ReactQueryProvider"
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] })
 
+// Metadata для SEO и социальных сетей
 export const metadata: Metadata = {
   title: {
     default: "ВЫБОР+ | Пиломатериалы",
