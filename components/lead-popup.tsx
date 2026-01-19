@@ -17,6 +17,32 @@ export function LeadPopup() {
   })
   const [isLoading, setIsLoading] = useState(false)
 
+  const formatPhoneNumber = (value: string) => {
+    // Удаляем все нецифровые символы
+    let numbers = value.replace(/\D/g, '')
+    
+    // Если пустая строка, возвращаем +7
+    if (!numbers) {
+      return '+7'
+    }
+    
+    // Если начинается с 8, заменяем на 7
+    if (numbers.startsWith('8')) {
+      numbers = '7' + numbers.slice(1)
+    }
+    
+    // Если начинается с 7, оставляем как есть, иначе добавляем 7 в начало
+    if (!numbers.startsWith('7')) {
+      numbers = '7' + numbers
+    }
+    
+    // Ограничиваем до 11 цифр (7 + 10 цифр номера)
+    numbers = numbers.slice(0, 11)
+    
+    // Форматируем как +7
+    return '+' + numbers
+  }
+
   // Показываем плашку через 20 секунд после загрузки страницы
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -99,9 +125,12 @@ export function LeadPopup() {
               <div>
                 <Input
                   type="tel"
-                  placeholder="Телефон"
+                  placeholder="+7 (___) ___-__-__"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) => {
+                    const formatted = formatPhoneNumber(e.target.value)
+                    setFormData({ ...formData, phone: formatted })
+                  }}
                   required
                 />
               </div>
