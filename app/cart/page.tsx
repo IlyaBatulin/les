@@ -25,6 +25,32 @@ export default function CartPage() {
   const [consent, setConsent] = useState(false)
   const { toast } = useToast()
 
+  const formatPhoneNumber = (value: string) => {
+    // Удаляем все нецифровые символы
+    let numbers = value.replace(/\D/g, '')
+    
+    // Если пустая строка, возвращаем +7
+    if (!numbers) {
+      return '+7'
+    }
+    
+    // Если начинается с 8, заменяем на 7
+    if (numbers.startsWith('8')) {
+      numbers = '7' + numbers.slice(1)
+    }
+    
+    // Если начинается с 7, оставляем как есть, иначе добавляем 7 в начало
+    if (!numbers.startsWith('7')) {
+      numbers = '7' + numbers
+    }
+    
+    // Ограничиваем до 11 цифр (7 + 10 цифр номера)
+    numbers = numbers.slice(0, 11)
+    
+    // Форматируем как +7
+    return '+' + numbers
+  }
+
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -339,8 +365,12 @@ export default function CartPage() {
                   </label>
                   <Input
                     id="phone"
+                    type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      const formatted = formatPhoneNumber(e.target.value)
+                      setPhone(formatted)
+                    }}
                     placeholder="+7 (___) ___-____"
                     required
                   />
