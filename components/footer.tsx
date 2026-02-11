@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { MapPin, Phone, Mail } from "lucide-react"
 import { useState, useEffect } from "react"
-import { createClientSupabaseClient } from "@/lib/supabase"
 
 type Category = {
   id: number;
@@ -20,69 +19,30 @@ export default function Footer() {
     const fetchCategories = async () => {
       try {
         setLoading(true)
-        const supabase = createClientSupabaseClient()
-        
-        // Проверяем подключение к Supabase
-        console.log("Supabase клиент инициализирован:", !!supabase)
-        
-        try {
-          // Получаем основные категории (верхнего уровня)
-          const { data, error } = await supabase
-            .from("categories")
-            .select("id, name, position")
-            .is("parent_id", null)
-            .order("position", { ascending: true })
-            .limit(5)  // Ограничиваем до 5 категорий
-          
-          if (error) {
-            console.error("Ошибка Supabase:", error.message, error.code, error.details)
-            // Используем фиктивные категории при ошибке
-            useFallbackCategories()
-            return
-          }
-          
-          if (data && data.length > 0) {
-            console.log("Загруженные категории:", data)
-            const categoriesWithSlug = data.map((category: any) => ({
-              ...category,
-              slug: category.name.toLowerCase().replace(/\s+/g, '-')
-            }));
+        const res = await fetch("/api/categories?parent=null")
+        if (res.ok) {
+          const data = await res.json()
+          if (Array.isArray(data) && data.length > 0) {
+            const categoriesWithSlug = data.slice(0, 5).map((category: any) => ({
+              id: Number(category.id),
+              name: String(category.name),
+              slug: String(category.name).toLowerCase().replace(/\s+/g, "-"),
+            }))
             setCategories(categoriesWithSlug as Category[])
           } else {
-            console.log("Категории не найдены или пустой массив")
-            // Если категорий нет, используем фиктивные
-            useFallbackCategories()
+            setCategories([])
           }
-        } catch (supabaseError) {
-          console.error("Ошибка при выполнении запроса к Supabase:", supabaseError)
-          useFallbackCategories()
+        } else {
+          setCategories([])
         }
       } catch (error) {
-        console.error("Общая ошибка при загрузке категорий:", error)
-        useFallbackCategories()
+        setCategories([])
       } finally {
         setLoading(false)
       }
     }
-    
-    // Функция для установки фиктивных категорий
-    const useFallbackCategories = () => {
-      setCategories([
-        { id: 1, name: "Пиломатериалы" },
-        { id: 2, name: "Стройматериалы" },
-        { id: 3, name: "Метизы" },
-        { id: 4, name: "Инструменты" },
-        { id: 5, name: "Лакокрасочные материалы" }
-      ])
-    }
-    
     fetchCategories()
   }, [])
-
-  // Проверка наличия категорий для отладки
-  useEffect(() => {
-    console.log("Текущие категории:", categories)
-  }, [categories])
 
   return (
     <footer className="bg-gray-100 pt-10 pb-6">

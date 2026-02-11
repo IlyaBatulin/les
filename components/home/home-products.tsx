@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { createClientSupabaseClient } from '@/lib/supabase'
 import ProductCard from '@/components/product-card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import type { Product } from '@/lib/types'
@@ -18,26 +17,16 @@ export default function HomeProducts() {
     const fetchProducts = async () => {
       try {
         setLoading(true)
-        const supabase = createClientSupabaseClient()
-        
-        // Загружаем последние добавленные товары
-        const { data: latest } = await supabase
-          .from('products')
-          .select('*, category:categories(id, name)')
-          .order('created_at', { ascending: false })
-          .limit(8)
-        
-        // Загружаем популярные товары (предполагаем, что есть поле views или sales)
-        const { data: popular } = await supabase
-          .from('products')
-          .select('*, category:categories(id, name)')
-          .order('views', { ascending: false })
-          .limit(8)
-        
-        // Преобразуем данные перед установкой в состояние
-        const processedLatest = latest ? formatProducts(latest) : []
-        const processedPopular = popular ? formatProducts(popular) : []
-        
+        const [latestRes, popularRes] = await Promise.all([
+          fetch('/api/products?sort=created-desc&limit=8'),
+          fetch('/api/products?sort=views-desc&limit=8'),
+        ])
+        const latest = latestRes.ok ? await latestRes.json() : []
+        let popular = popularRes.ok ? await popularRes.json() : []
+
+        const processedLatest = formatProducts(latest)
+        const processedPopular = formatProducts(popular.length > 0 ? popular : latest)
+
         setNewProducts(processedLatest)
         setPopularProducts(processedPopular.length > 0 ? processedPopular : processedLatest)
         setProducts(processedLatest)
@@ -47,7 +36,7 @@ export default function HomeProducts() {
         setLoading(false)
       }
     }
-    
+
     fetchProducts()
   }, [])
   

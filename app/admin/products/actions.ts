@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { createServerSupabaseClient } from "@/lib/supabase"
+import { adminFetch } from "@/lib/admin-fetch"
 
 interface ProductInput {
   name: string
@@ -20,39 +20,25 @@ interface ProductUpdateInput extends ProductInput {
 }
 
 export async function addProduct(product: ProductInput) {
-  const supabase = createServerSupabaseClient()
-
-  const { error } = await supabase.from("products").insert([product])
-
-  if (error) {
-    console.error("Error adding product:", error)
-    throw new Error("Failed to add product")
+  const res = await adminFetch("/api/products", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(product),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || "Failed to add product")
   }
-
   revalidatePath("/admin/products")
 }
 
 export async function updateProduct(product: ProductUpdateInput) {
-  const supabase = createServerSupabaseClient()
+  if (!product.name?.trim()) throw new Error("Название товара не может быть пустым")
+  if (isNaN(product.price) || product.price < 0) throw new Error("Цена должна быть положительным числом")
+  if (isNaN(product.category_id) || product.category_id <= 0) throw new Error("Неверная категория товара")
+  if (isNaN(product.stock) || product.stock < 0) throw new Error("Количество на складе не может быть отрицательным")
 
-  // Валидация данных
-  if (!product.name || product.name.trim() === '') {
-    throw new Error("Название товара не может быть пустым")
-  }
-  
-  if (isNaN(product.price) || product.price < 0) {
-    throw new Error("Цена должна быть положительным числом")
-  }
-  
-  if (isNaN(product.category_id) || product.category_id <= 0) {
-    throw new Error("Неверная категория товара")
-  }
-  
-  if (isNaN(product.stock) || product.stock < 0) {
-    throw new Error("Количество на складе не может быть отрицательным")
-  }
-
-  const updateData: any = {
+  const body: Record<string, unknown> = {
     name: product.name.trim(),
     description: product.description?.trim() || null,
     price: product.price,
@@ -61,36 +47,28 @@ export async function updateProduct(product: ProductUpdateInput) {
     unit: product.unit,
     stock: product.stock,
     characteristics: product.characteristics || {},
-    updated_at: new Date().toISOString(),
   }
-
-  // Добавляем price_per_cubic только если оно определено
   if (product.price_per_cubic !== undefined && product.price_per_cubic !== null) {
-    updateData.price_per_cubic = product.price_per_cubic
+    body.price_per_cubic = product.price_per_cubic
   }
 
-  const { error } = await supabase
-    .from("products")
-    .update(updateData)
-    .eq("id", product.id)
-
-  if (error) {
-    console.error("Error updating product:", error)
-    throw new Error(`Ошибка при обновлении товара: ${error.message}`)
+  const res = await adminFetch(`/api/products/${product.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || "Ошибка при обновлении товара")
   }
-
   revalidatePath("/admin/products")
 }
 
 export async function deleteProduct(productId: number) {
-  const supabase = createServerSupabaseClient()
-
-  const { error } = await supabase.from("products").delete().eq("id", productId)
-
-  if (error) {
-    console.error("Error deleting product:", error)
-    throw new Error("Failed to delete product")
+  const res = await adminFetch(`/api/products/${productId}`, { method: "DELETE" })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || "Failed to delete product")
   }
-
   revalidatePath("/admin/products")
 }

@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
 import type { FilterOptions } from "@/lib/types"
-import { createClientSupabaseClient } from "@/lib/supabase"
 
 interface DynamicFilterSidebarProps {
   onFilterChange: (filters: FilterOptions) => void
@@ -34,23 +33,17 @@ export default function DynamicFilterSidebar({
   useEffect(() => {
     const fetchCharacteristics = async () => {
       setIsLoading(true)
-      const supabase = createClientSupabaseClient()
-
-      // Если выбрана категория, получаем все её подкатегории
       let categoryIds: number[] = []
       if (selectedCategoryId) {
-        const allCategoryIds = await getAllSubcategoryIds(Number(selectedCategoryId))
-        categoryIds = [...allCategoryIds, Number(selectedCategoryId)]
+        const res = await fetch(`/api/categories?descendantIdsOf=${selectedCategoryId}`)
+        const ids = res.ok ? await res.json() : []
+        categoryIds = [...ids, Number(selectedCategoryId)]
       }
 
-      // Получаем товары с учетом выбранной категории
-      let productsQuery = supabase.from("products").select("characteristics")
-
-      if (categoryIds.length > 0) {
-        productsQuery = productsQuery.in("category_id", categoryIds)
-      }
-
-      const { data: products } = await productsQuery
+      const params = new URLSearchParams()
+      categoryIds.forEach((c) => params.append("category", String(c)))
+      const res = await fetch(`/api/products?${params.toString()}`)
+      const products = res.ok ? await res.json() : []
 
       // Извлекаем уникальные ключи и значения характеристик
       const characteristicsMap: Record<string, Set<string>> = {}
@@ -212,25 +205,6 @@ export default function DynamicFilterSidebar({
       )}
     </div>
   )
-}
-
-// Вспомогательная функция для получения всех ID подкатегорий
-async function getAllSubcategoryIds(categoryId: number): Promise<number[]> {
-  const supabase = createClientSupabaseClient()
-
-  const { data, error } = await supabase.from("categories").select("id").eq("parent_id", categoryId)
-
-  if (error || !data || data.length === 0) {
-    return []
-  }
-
-  const directSubcategoryIds = data.map((cat) => cat.id) as number[]
-
-  // Рекурсивно получаем подкатегории подкатегорий
-  const nestedSubcategoryIds = await Promise.all(directSubcategoryIds.map((id) => getAllSubcategoryIds(id as number)))
-
-  // Сглаживаем массив массивов
-  return [...directSubcategoryIds, ...nestedSubcategoryIds.flat()]
 }
 
 // Форматирование ключей характеристик для отображения

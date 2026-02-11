@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase"
+import { adminFetch } from "@/lib/admin-fetch"
 import type { Category } from "@/lib/types"
 import AddCategoryForm from "@/components/admin/add-category-form"
 import ProtectedRoute from "@/components/admin/protected-route"
@@ -7,16 +7,9 @@ import { Search } from "lucide-react"
 import CategorySearch from "@/components/admin/category-search"
 
 async function getCategories(): Promise<Category[]> {
-  const supabase = createServerSupabaseClient()
-
-  const { data, error } = await supabase.from("categories").select("*").order("name")
-
-  if (error) {
-    console.error("Error fetching categories:", error)
-    return []
-  }
-
-  return data || []
+  const res = await adminFetch("/api/categories?flat=1")
+  if (!res.ok) return []
+  return res.json()
 }
 
 export default async function CategoriesPage() {

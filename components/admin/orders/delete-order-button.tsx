@@ -14,7 +14,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { createClientSupabaseClient } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 
 interface DeleteOrderButtonProps {
@@ -30,28 +29,11 @@ export default function DeleteOrderButton({ orderId }: DeleteOrderButtonProps) {
   const handleDelete = async () => {
     setIsDeleting(true)
     try {
-      const supabase = createClientSupabaseClient()
-      
-      // Сначала удаляем связанные записи в order_items
-      const { error: itemsError } = await supabase
-        .from("order_items")
-        .delete()
-        .eq("order_id", orderId)
-      
-      if (itemsError) {
-        throw new Error(`Ошибка при удалении позиций заказа: ${itemsError.message}`)
+      const res = await fetch(`/api/orders/${orderId}`, { method: "DELETE", credentials: "include" })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Ошибка при удалении заказа")
       }
-      
-      // Теперь удаляем сам заказ
-      const { error: orderError } = await supabase
-        .from("orders")
-        .delete()
-        .eq("id", orderId)
-      
-      if (orderError) {
-        throw new Error(`Ошибка при удалении заказа: ${orderError.message}`)
-      }
-      
       toast({
         title: "Заказ удален",
         description: `Заказ #${orderId} был успешно удален.`,

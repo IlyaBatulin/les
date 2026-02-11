@@ -11,9 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { updateCategory } from "@/app/admin/categories/actions"
-import { createClientSupabaseClient } from "@/lib/supabase"
 import { XCircle, Loader2 } from "lucide-react"
-import { v4 as uuidv4 } from "uuid"
 
 interface EditCategoryDialogProps {
   category: Category
@@ -65,36 +63,21 @@ export default function EditCategoryDialog({ category, categories, onClose }: Ed
 
   const uploadImage = async () => {
     if (!imageFile) return null
-
     setIsUploading(true)
     setUploadError(null)
-
     try {
-      const supabase = createClientSupabaseClient()
-      const fileExt = imageFile.name.split(".").pop()
-      const fileName = `${uuidv4()}.${fileExt}`
-      const filePath = `${fileName}`
-
-      console.log("Загрузка файла:", fileName)
-
-      // Загружаем файл в хранилище
-      const { error } = await supabase.storage.from("product").upload(filePath, imageFile)
-
-      if (error) {
-        console.error("Ошибка при загрузке изображения:", error)
-        setUploadError(`Ошибка загрузки: ${error.message}`)
+      const formData = new FormData()
+      formData.append("file", imageFile)
+      const res = await fetch("/api/admin/upload", { method: "POST", body: formData, credentials: "include" })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setUploadError(err.error || "Ошибка загрузки")
         return null
       }
-
-      // Получаем публичный URL для загруженного изображения
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("product").getPublicUrl(filePath)
-
-      return publicUrl
-    } catch (error: any) {
-      console.error("Exception during upload:", error)
-      setUploadError(`Ошибка загрузки: ${error.message || "Неизвестная ошибка"}`)
+      const { url } = await res.json()
+      return url
+    } catch {
+      setUploadError("Ошибка загрузки")
       return null
     } finally {
       setIsUploading(false)

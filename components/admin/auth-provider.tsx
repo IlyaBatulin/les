@@ -6,14 +6,14 @@ import { usePathname, useRouter } from "next/navigation"
 // Определение структуры контекста авторизации
 type AuthContextType = {
   isAuthenticated: boolean
-  login: (username: string, password: string) => boolean
+  login: (username: string, password: string) => Promise<boolean>
   logout: () => void
 }
 
 // Создание контекста с дефолтными значениями
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
-  login: () => false,
+  login: async () => false,
   logout: () => {},
 })
 
@@ -47,25 +47,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated, pathname, router, isLoading])
 
-  // Функция входа
-  const login = (username: string, password: string) => {
-    // Проверка учетных данных из переменных окружения
-    const adminUsername = process.env.NEXT_PUBLIC_ADMIN_USERNAME || "admin"
-    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "admin123"
-    
-    if (username === adminUsername && password === adminPassword) {
-      // Создаем простой токен
-      const token = Date.now().toString()
-      // Сохраняем токен в localStorage
-      localStorage.setItem("admin_auth_token", token)
-      setIsAuthenticated(true)
-      return true
+  // Функция входа — проверка на сервере через API
+  const login = async (username: string, password: string) => {
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.ok) {
+        localStorage.setItem("admin_auth_token", "1")
+        setIsAuthenticated(true)
+        return true
+      }
+    } catch {
+      // ignore
     }
     return false
   }
 
   // Функция выхода
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch("/api/admin/logout", { method: "POST" })
+    } catch {
+      // ignore
+    }
     localStorage.removeItem("admin_auth_token")
     setIsAuthenticated(false)
     router.push("/admin/login")

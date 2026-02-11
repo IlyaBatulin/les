@@ -5,8 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Menu, ChevronRight, ChevronDown, AlertCircle, X } from "lucide-react"
-import { createClientSupabaseClient } from "@/lib/supabase"
+import { Menu, ChevronRight, ChevronDown, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 // Используем тот же тип Category, что и в header.tsx
@@ -36,69 +35,59 @@ export function MobileNav({ categories: propCategories, menuIconClassName = "" }
       setCategories(propCategories)
       return
     }
-
     const fetchCategories = async () => {
       try {
-        const supabase = createClientSupabaseClient()
-        
-        const { data } = await supabase
-          .from("categories")
-          .select("id, name, parent_id")
-          .is("parent_id", null)
-          .order("name")
-        
-        if (data) {
-          setCategories(data.map(cat => ({
-            id: Number(cat.id),
-            name: String(cat.name),
-            parent_id: null
-          })))
+        const res = await fetch("/api/categories?parent=null")
+        if (res.ok) {
+          const data = await res.json()
+          if (Array.isArray(data)) {
+            setCategories(data.map((cat: any) => ({
+              id: Number(cat.id),
+              name: String(cat.name),
+              parent_id: null
+            })))
+          } else {
+            setCategories([])
+          }
+        } else {
+          setCategories([])
         }
       } catch (error) {
-        console.error("Ошибка при загрузке категорий:", error)
+        setCategories([])
       }
     }
-    
     fetchCategories()
   }, [propCategories])
 
   // Загрузка подкатегорий при раскрытии категории
   const loadSubcategories = async (categoryId: number) => {
-    // Если подкатегории уже загружены, просто переключаем видимость
     if (subCategories[categoryId]) {
       toggleCategory(categoryId)
       return
     }
-
     try {
-      const supabase = createClientSupabaseClient()
-      
-      const { data } = await supabase
-        .from("categories")
-        .select("id, name, parent_id")
-        .eq("parent_id", categoryId)
-        .order("name")
-      
-      if (data && data.length > 0) {
-        // Исправляем ошибку типов, явно приводя к типу Category[]
-        const formattedData: Category[] = data.map(cat => ({
-          id: Number(cat.id),
-          name: String(cat.name),
-          parent_id: Number(cat.parent_id)
-        }));
-        
-        setSubCategories(prev => ({
-          ...prev,
-          [categoryId]: formattedData
-        }))
-        toggleCategory(categoryId)
+      const res = await fetch(`/api/categories?parent=${categoryId}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data) && data.length > 0) {
+          const formattedData: Category[] = data.map((cat: any) => ({
+            id: Number(cat.id),
+            name: String(cat.name),
+            parent_id: Number(cat.parent_id)
+          }))
+          setSubCategories(prev => ({ ...prev, [categoryId]: formattedData }))
+          toggleCategory(categoryId)
+        } else {
+          router.push(`/catalog?category=${categoryId}`)
+          setIsOpen(false)
+        }
       } else {
-        // Если подкатегорий нет, переходим на страницу категории
         router.push(`/catalog?category=${categoryId}`)
         setIsOpen(false)
       }
-    } catch (error) {
-      console.error("Ошибка при загрузке подкатегорий:", error)
+    } catch {
+      router.push(`/catalog?category=${categoryId}`)
+      setIsOpen(false)
     }
   }
 

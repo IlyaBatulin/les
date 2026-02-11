@@ -8,7 +8,6 @@ import { Search, ShoppingCart, X, ChevronDown, ChevronRight } from "lucide-react
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { MobileNav } from "@/components/mobile-nav"
-import { createClientSupabaseClient } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/context/cart-context"
 import { CartDrawer } from "@/components/cart-drawer"
@@ -61,19 +60,11 @@ export default function Header() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const supabase = createClientSupabaseClient()
-        
-        // Получаем основные категории (без родителя)
-        const { data: mainCats } = await supabase
-          .from("categories")
-          .select("id, name, parent_id, image_url, position")
-          .is("parent_id", null)
-          .order("position", { ascending: true })
-          .order("name")
-        
-        if (mainCats) {
-          // Сортировка по position, если есть, иначе по id
-          const sorted = mainCats.sort((a, b) => {
+        const res = await fetch("/api/categories?parent=null")
+        if (!res.ok) return
+        const mainCats = await res.json()
+        if (Array.isArray(mainCats) && mainCats.length > 0) {
+          const sorted = [...mainCats].sort((a: any, b: any) => {
             const aPos = a.position == null ? null : Number(a.position)
             const bPos = b.position == null ? null : Number(b.position)
             const aId = Number(a.id)
@@ -83,11 +74,11 @@ export default function Header() {
             if (bPos == null) return -1
             return aPos - bPos
           })
-          setMainCategories(sorted.map(cat => ({
+          setMainCategories(sorted.map((cat: any) => ({
             id: Number(cat.id),
             name: String(cat.name),
             parent_id: null,
-            image_url: cat.image_url as string | null,
+            image_url: cat.image_url ?? null,
             position: cat.position == null ? null : Number(cat.position)
           })))
         }
@@ -95,7 +86,6 @@ export default function Header() {
         console.error("Ошибка при загрузке категорий:", error)
       }
     }
-    
     fetchCategories()
   }, [])
 
@@ -106,21 +96,13 @@ export default function Header() {
       setActiveSubCategory(null)
       return
     }
-
     const fetchSubCategories = async () => {
       try {
-        const supabase = createClientSupabaseClient()
-        
-        const { data: subCats } = await supabase
-          .from("categories")
-          .select("id, name, parent_id, image_url, position")
-          .eq("parent_id", activeMainCategory)
-          .order("position", { ascending: true })
-          .order("name")
-        
-        if (subCats) {
-          // Сортировка по position, если есть, иначе по id
-          const sorted = subCats.sort((a, b) => {
+        const res = await fetch(`/api/categories?parent=${activeMainCategory}`)
+        if (!res.ok) return
+        const subCats = await res.json()
+        if (Array.isArray(subCats) && subCats.length > 0) {
+          const sorted = [...subCats].sort((a: any, b: any) => {
             const aPos = a.position == null ? null : Number(a.position)
             const bPos = b.position == null ? null : Number(b.position)
             const aId = Number(a.id)
@@ -130,19 +112,20 @@ export default function Header() {
             if (bPos == null) return -1
             return aPos - bPos
           })
-          setSubCategories(sorted.map(cat => ({
+          setSubCategories(sorted.map((cat: any) => ({
             id: Number(cat.id),
             name: String(cat.name),
             parent_id: Number(cat.parent_id),
-            image_url: cat.image_url as string | null,
+            image_url: cat.image_url ?? null,
             position: cat.position == null ? null : Number(cat.position)
           })))
+        } else {
+          setSubCategories([])
         }
       } catch (error) {
         console.error("Ошибка при загрузке подкатегорий:", error)
       }
     }
-    
     fetchSubCategories()
   }, [activeMainCategory])
 
@@ -152,30 +135,24 @@ export default function Header() {
       setSizes([])
       return
     }
-
     const fetchSizes = async () => {
       try {
-        const supabase = createClientSupabaseClient()
-        
-        // Загружаем только реальные данные из базы
-        const { data: sizesData } = await supabase
-          .from("categories")
-          .select("id, name, parent_id")
-          .eq("parent_id", activeSubCategory)
-          .order("name")
-        
-        if (sizesData) {
-          setSizes(sizesData.map(size => ({
+        const res = await fetch(`/api/categories?parent=${activeSubCategory}`)
+        if (!res.ok) return
+        const sizesData = await res.json()
+        if (Array.isArray(sizesData) && sizesData.length > 0) {
+          setSizes(sizesData.map((size: any) => ({
             id: Number(size.id),
             name: String(size.name),
             parent_id: Number(size.parent_id)
           })))
+        } else {
+          setSizes([])
         }
       } catch (error) {
         console.error("Ошибка при загрузке размеров:", error)
       }
     }
-    
     fetchSizes()
   }, [activeSubCategory])
 
@@ -206,27 +183,37 @@ export default function Header() {
       setShowResults(false)
       return
     }
-
     setIsSearching(true)
     setShowResults(true)
-
     try {
-      const supabase = createClientSupabaseClient()
-
-      // Поиск товаров
-      const { data: products } = await supabase.from("products").select("id, name").ilike("name", `%${query}%`).limit(5)
-
-      // Поиск категорий
-      const { data: categories } = await supabase
-        .from("categories")
-        .select("id, name")
-        .ilike("name", `%${query}%`)
-        .limit(5)
-
-      setSearchResults({
-        products: products ? products.map(p => ({ id: Number(p.id), name: String(p.name) })) : [],
-        categories: categories ? categories.map(c => ({ id: Number(c.id), name: String(c.name) })) : [],
-      })
+      const [prodRes, catRes] = await Promise.all([
+        fetch(`/api/products?search=${encodeURIComponent(query)}`),
+        fetch("/api/categories"),
+      ])
+      const products: { id: number; name: string }[] = []
+      const categories: { id: number; name: string }[] = []
+      if (prodRes.ok) {
+        const data = await prodRes.json()
+        if (Array.isArray(data)) {
+          data.slice(0, 5).forEach((p: { id: number; name: string }) => {
+            products.push({ id: Number(p.id), name: String(p.name) })
+          })
+        }
+      }
+      if (catRes.ok) {
+        const tree = await catRes.json()
+        const q = query.toLowerCase()
+        const flatten = (arr: any[]): { id: number; name: string }[] =>
+          arr.flatMap((c) => {
+            const item = { id: Number(c.id), name: String(c.name) }
+            const matches = item.name.toLowerCase().includes(q)
+            const children = c.subcategories ? flatten(c.subcategories) : []
+            return matches ? [item, ...children] : children
+          })
+        const flat = flatten(Array.isArray(tree) ? tree : [])
+        categories.push(...flat.slice(0, 5))
+      }
+      setSearchResults({ products, categories })
     } catch (error) {
       console.error("Ошибка при поиске:", error)
     } finally {

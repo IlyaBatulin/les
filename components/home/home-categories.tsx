@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { createClientSupabaseClient } from '@/lib/supabase'
 import { ArrowRight } from 'lucide-react'
 import { CategorySkeleton } from '@/components/ui/category-skeleton'
 
@@ -24,19 +23,12 @@ export default function HomeCategories() {
     const fetchCategories = async () => {
       try {
         setLoading(true)
-        const supabase = createClientSupabaseClient()
-        
-        // Получаем только категории верхнего уровня
-        const { data } = await supabase
-          .from('categories')
-          .select('*')
-          .is('parent_id', null)
-          .order('position', { ascending: true })
-          .limit(6)
-        
-        if (data) {
+        const res = await fetch('/api/categories?parent=null')
+        const data = res.ok ? await res.json() : null
+
+        if (data && Array.isArray(data)) {
           // Дополнительно сортируем на клиенте, если position null
-          const sorted = (data as Category[]).sort((a, b) => {
+          const sorted = (data as Category[]).slice(0, 6).sort((a, b) => {
             if (a.position == null && b.position == null) return a.id - b.id
             if (a.position == null) return 1
             if (b.position == null) return -1

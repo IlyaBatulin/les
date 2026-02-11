@@ -6,7 +6,6 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { createClientSupabaseClient } from "@/lib/supabase"
 import { Loader2 } from "lucide-react"
 
 interface OrderStatusFormProps {
@@ -22,24 +21,16 @@ export default function OrderStatusForm({ orderId, currentStatus }: OrderStatusF
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
-
     try {
-      const supabase = createClientSupabaseClient()
-
-      const { error } = await supabase
-        .from("orders")
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq("id", orderId)
-
-      if (error) {
-        console.error("Error updating order status:", error)
-        throw error
-      }
-
-      // Обновляем страницу для отображения изменений
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+        credentials: "include",
+      })
+      if (!res.ok) throw new Error(await res.text())
       router.refresh()
-    } catch (error) {
-      console.error("Failed to update order status:", error)
+    } catch {
       alert("Не удалось обновить статус заказа")
     } finally {
       setIsSubmitting(false)

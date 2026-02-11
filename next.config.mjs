@@ -13,22 +13,22 @@ const nextConfig = {
     }),
   },
   images: {
-    // Отключаем оптимизацию в dev-режиме, чтобы обойти блокировку приватных IP
-    // В production оптимизация будет включена
-    unoptimized: process.env.NODE_ENV === 'development',
-    // Разрешаем загрузку изображений из Supabase
+    // Отключаем оптимизацию — Next.js не будет загружать изображения сервером,
+    // браузер грузит их напрямую с s3.regru.cloud (обходит блокировку приватных IP при VPN/DNS)
+    unoptimized: true,
+    // Разрешаем загрузку изображений из S3 REG.RU и других источников
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**.supabase.co',
+        hostname: 's3.regru.cloud',
         port: '',
-        pathname: '/storage/v1/object/public/**',
+        pathname: '/product/**',
       },
       {
-        protocol: 'https',
-        hostname: 'vccagsyqenvfttmghscn.supabase.co',
+        protocol: 'http',
+        hostname: 'localhost',
         port: '',
-        pathname: '/storage/v1/object/public/**',
+        pathname: '/uploads/**',
       },
     ],
     // Форматы для оптимизации

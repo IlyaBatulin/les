@@ -1,21 +1,14 @@
 export const dynamic = 'force-dynamic'
 
-import { createServerSupabaseClient } from "@/lib/supabase"
+import { adminFetch } from "@/lib/admin-fetch"
 import ProtectedRoute from "@/components/admin/protected-route"
 import { DataTable } from "@/components/admin/orders/data-table"
 import { columns } from "@/components/admin/orders/columns"
 
 async function getOrders() {
-  const supabase = createServerSupabaseClient()
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*")
-    .order("created_at", { ascending: false })
-  if (error) {
-    console.error(error)
-    return []
-  }
-  return data || []
+  const res = await adminFetch("/api/orders")
+  if (!res.ok) return []
+  return res.json()
 }
 
 export default async function OrdersPage() {

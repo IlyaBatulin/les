@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createServerSupabaseClient } from "@/lib/supabase"
+import { adminFetch } from "@/lib/admin-fetch"
 import { notFound } from "next/navigation"
 import ProtectedRoute from "@/components/admin/protected-route"
 import { Button } from "@/components/ui/button"
@@ -11,33 +11,14 @@ import OrderStatusForm from "@/components/admin/orders/order-status-form"
 import DeleteOrderButton from "@/components/admin/orders/delete-order-button"
 
 async function getOrder(id: string) {
-  const supabase = createServerSupabaseClient()
-
-  const { data: order, error: orderError } = await supabase.from("orders").select("*").eq("id", id).single()
-
-  if (orderError || !order) {
-    console.error("Error fetching order:", orderError)
-    return null
-  }
-
-  const { data: items, error: itemsError } = await supabase
-    .from("order_items")
-    .select(`
-      *,
-      product:products(id, name, image_url, price)
-    `)
-    .eq("order_id", id)
-
-  if (itemsError) {
-    console.error("Error fetching order items:", itemsError)
-    return { ...order, items: [] }
-  }
-
-  return { ...order, items: items || [] }
+  const res = await adminFetch(`/api/orders/${id}`)
+  if (!res.ok) return null
+  return res.json()
 }
 
-export default async function OrderPage({ params }: { params: { id: string } }) {
-  const order = await getOrder(params.id)
+export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const order = await getOrder(id)
 
   if (!order) {
     notFound()

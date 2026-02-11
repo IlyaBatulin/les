@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createServerSupabaseClient } from "@/lib/supabase"
+import { adminFetch } from "@/lib/admin-fetch"
 import type { Category } from "@/lib/types"
 import AddProductForm from "@/components/admin/add-product-form"
 import ProtectedRoute from "@/components/admin/protected-route"
@@ -9,16 +9,9 @@ import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 async function getCategories(): Promise<Category[]> {
-  const supabase = createServerSupabaseClient()
-
-  const { data, error } = await supabase.from("categories").select("*").order("name")
-
-  if (error) {
-    console.error("Error fetching categories:", error)
-    return []
-  }
-
-  return data || []
+  const res = await adminFetch("/api/categories?flat=1")
+  if (!res.ok) return []
+  return res.json()
 }
 
 export default async function AddProductPage() {

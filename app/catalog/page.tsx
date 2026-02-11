@@ -14,7 +14,6 @@ import CategoryCard from "@/components/category-card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import ProductCard from "@/components/product-card"
-import { createClientSupabaseClient } from "@/lib/supabase"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -74,109 +73,51 @@ export default function CatalogPage() {
     setTotalFiltersCount(count)
   }, [activeFilters])
 
-  // Загружаем имена категорий для отображения в фильтрах
+  // Загружаем имена категорий и количество товаров
   useEffect(() => {
-    const loadCategoryNames = async () => {
-      const supabase = createClientSupabaseClient()
-      const { data } = await supabase.from("categories").select("id, name")
-
-      if (data) {
-        const namesMap: Record<string, string> = {}
-        data.forEach((cat) => {
-          namesMap[(cat.id as number).toString()] = cat.name as string
-        })
-        setCategoryNames(namesMap)
+    const loadCategoryData = async () => {
+      try {
+        const [catRes, prodRes] = await Promise.all([
+          fetch("/api/categories"),
+          fetch("/api/products"),
+        ])
+        if (catRes.ok) {
+          const tree = await catRes.json()
+          const flatten = (arr: any[]): { id: number; name: string }[] =>
+            arr.flatMap((c) => [c, ...flatten(c.subcategories || [])])
+          const flat = flatten(tree)
+          const namesMap: Record<string, string> = {}
+          flat.forEach((cat) => {
+            namesMap[String(cat.id)] = cat.name
+          })
+          setCategoryNames(namesMap)
+        }
+        if (prodRes.ok) {
+          const products = await prodRes.json()
+          const counts: Record<number, number> = {}
+          products.forEach((p: { category_id: number }) => {
+            const cid = p.category_id
+            counts[cid] = (counts[cid] || 0) + 1
+          })
+          setCategoryProductCounts(counts)
+        }
+      } catch (e) {
+        console.error("Ошибка загрузки категорий/товаров:", e)
       }
     }
-
-    loadCategoryNames()
+    loadCategoryData()
   }, [])
 
-  // Загружаем количество товаров в каждой категории
-  useEffect(() => {
-    const loadCategoryCounts = async () => {
-      const supabase = createClientSupabaseClient()
-      const { data: products } = await supabase.from("products").select("category_id")
-
-      if (products) {
-        const counts: Record<number, number> = {}
-        products.forEach((product) => {
-          const categoryId = product.category_id as number;
-          counts[categoryId] = (counts[categoryId] || 0) + 1
-        })
-        setCategoryProductCounts(counts)
-      }
-    }
-
-    loadCategoryCounts()
-  }, [])
-
-  // Находим useEffect, который загружает подкатегории
+  // Загрузка подкатегорий
   useEffect(() => {
     const fetchCategoryData = async () => {
-      if (!categoryParam) {
-        // Если категория не выбрана, загружаем все основные категории
-        setLoadingCategories(true); // Устанавливаем состояние загрузки
-        try {
-          const supabase = createClientSupabaseClient();
-          const { data } = await supabase
-            .from("categories")
-            .select("*")
-            .is("parent_id", null)
-            .order("position", { ascending: true })
-            .order("name");
-          
-          if (data) {
-            // Сортировка по position, если есть, иначе по id
-            const sorted = data.sort((a, b) => {
-              const aPos = a.position == null ? null : Number(a.position)
-              const bPos = b.position == null ? null : Number(b.position)
-              const aId = Number(a.id)
-              const bId = Number(b.id)
-              if (aPos == null && bPos == null) return aId - bId
-              if (aPos == null) return 1
-              if (bPos == null) return -1
-              return aPos - bPos
-            })
-            setSubcategories(sorted);
-            setHasSubcategories(sorted.length > 0);
-            setShowProducts(false);
-          }
-        } catch (error) {
-          console.error("Ошибка при загрузке категорий:", error);
-        } finally {
-          setLoadingCategories(false); // Завершаем загрузку
-        }
-        return;
-      }
-
-      // Если категория выбрана
-      setLoadingCategories(true); // Устанавливаем состояние загрузки
+      setLoadingCategories(true)
       try {
-        const supabase = createClientSupabaseClient();
-        
-        // Получаем информацию о текущей категории
-        const { data: categoryData } = await supabase
-          .from("categories")
-          .select("*")
-          .eq("id", categoryParam)
-          .single();
-        
-        if (categoryData) {
-          setCategoryName(categoryData.name as string);
-          setCurrentCategory(categoryData as unknown as Category);
-          
-          // Проверяем наличие подкатегорий
-          const { data: subcats } = await supabase
-            .from("categories")
-            .select("*")
-            .eq("parent_id", categoryParam)
-            .order("position", { ascending: true })
-            .order("name");
-          
-          if (subcats && subcats.length > 0) {
-            // Сортировка по position, если есть, иначе по id
-            const sorted = subcats.sort((a, b) => {
+        if (!categoryParam) {
+          const res = await fetch("/api/categories?parent=null")
+          if (res.ok) {
+            const data = await res.json()
+            const sorted = [...data].sort((a: any, b: any) => {
               const aPos = a.position == null ? null : Number(a.position)
               const bPos = b.position == null ? null : Number(b.position)
               const aId = Number(a.id)
@@ -186,57 +127,66 @@ export default function CatalogPage() {
               if (bPos == null) return -1
               return aPos - bPos
             })
-            setSubcategories(sorted);
-            setHasSubcategories(true);
-            setShowProducts(false);
-          } else {
-            setHasSubcategories(false);
-            setShowProducts(true);
+            setSubcategories(sorted)
+            setHasSubcategories(sorted.length > 0)
+            setShowProducts(false)
           }
+          return
+        }
+
+        const res = await fetch(`/api/categories?id=${categoryParam}`)
+        if (!res.ok) return
+        const categoryData = await res.json()
+        setCategoryName(categoryData.name)
+        setCurrentCategory(categoryData as Category)
+        const subcats = categoryData.subcategories || []
+        if (subcats.length > 0) {
+          const sorted = [...subcats].sort((a: any, b: any) => {
+            const aPos = a.position == null ? null : Number(a.position)
+            const bPos = b.position == null ? null : Number(b.position)
+            const aId = Number(a.id)
+            const bId = Number(b.id)
+            if (aPos == null && bPos == null) return aId - bId
+            if (aPos == null) return 1
+            if (bPos == null) return -1
+            return aPos - bPos
+          })
+          setSubcategories(sorted)
+          setHasSubcategories(true)
+          setShowProducts(false)
+        } else {
+          setHasSubcategories(false)
+          setShowProducts(true)
         }
       } catch (error) {
-        console.error("Ошибка при загрузке данных категории:", error);
+        console.error("Ошибка при загрузке категорий:", error)
       } finally {
-        setLoadingCategories(false); // Завершаем загрузку
+        setLoadingCategories(false)
       }
-    };
+    }
+    fetchCategoryData()
+  }, [categoryParam])
 
-    fetchCategoryData();
-  }, [categoryParam]);
-
-  // Получаем путь категории для хлебных крошек
+  // Путь категории для хлебных крошек
   useEffect(() => {
     const getCategoryPath = async () => {
       if (!categoryParam) {
         setCategoryPath([])
         return
       }
-
-      const supabase = createClientSupabaseClient()
-      const currentCategoryId = Number(categoryParam)
-      const path: { id: number; name: string }[] = []
-
-      // Функция для получения категории и её родителя
-      const getCategory = async (id: number) => {
-        const { data } = await supabase.from("categories").select("id, name, parent_id").eq("id", id).single()
-
-        if (data) {
-          path.unshift({ id: data.id as number, name: data.name as string })
-          if (data.parent_id !== null && data.parent_id !== undefined) {
-            await getCategory(data.parent_id as number)
+      try {
+        const res = await fetch(`/api/categories?pathFor=${categoryParam}`)
+        if (res.ok) {
+          const path = await res.json()
+          setCategoryPath(path)
+          if (path.length > 0) {
+            setCategoryName(path[path.length - 1].name)
           }
         }
-      }
-
-      await getCategory(currentCategoryId)
-      setCategoryPath(path)
-
-      // Устанавливаем имя текущей категории
-      if (path.length > 0) {
-        setCategoryName(path[path.length - 1].name)
+      } catch (e) {
+        console.error("Ошибка загрузки пути категории:", e)
       }
     }
-
     getCategoryPath()
   }, [categoryParam])
 
@@ -283,29 +233,19 @@ export default function CatalogPage() {
 
   const fetchProducts = async () => {
     setIsLoading(true)
-    const supabase = createClientSupabaseClient()
-
-    let query = supabase.from("products").select(`
-      *,
-      category:categories(id, name)
-    `)
-
-    // Если выбрана категория, фильтруем товары на уровне SQL
-    if (categoryParam) {
-      query = query.eq("category_id", categoryParam)
-    }
-
-    const { data, error } = await query
-
-    if (error) {
+    try {
+      const params = new URLSearchParams()
+      if (categoryParam) params.set("category", categoryParam)
+      const res = await fetch(`/api/products?${params.toString()}`)
+      if (!res.ok) throw new Error("Ошибка загрузки товаров")
+      const typedData = (await res.json()) as Product[]
+      setAllProducts(typedData)
+      applyFilters(typedData)
+    } catch (error) {
       console.error("Ошибка при загрузке товаров:", error)
+    } finally {
       setIsLoading(false)
-      return
     }
-
-    const typedData = data as unknown as Product[]
-    setAllProducts(typedData)
-    applyFilters(typedData)
   }
 
   const applyFilters = (products = allProducts) => {

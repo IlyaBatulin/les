@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createServerSupabaseClient } from "@/lib/supabase"
+import { adminFetch } from "@/lib/admin-fetch"
 import type { Product } from "@/lib/types"
 import ProductList from "@/components/admin/product-list"
 import ProtectedRoute from "@/components/admin/protected-route"
@@ -10,22 +10,9 @@ import Link from "next/link"
 import { Input } from "@/components/ui/input"
 
 async function getProducts(): Promise<Product[]> {
-  const supabase = createServerSupabaseClient()
-
-  const { data, error } = await supabase
-    .from("products")
-    .select(`
-      *,
-      category:categories(id, name)
-    `)
-    .order("name")
-
-  if (error) {
-    console.error("Error fetching products:", error)
-    return []
-  }
-
-  return data || []
+  const res = await adminFetch("/api/products")
+  if (!res.ok) return []
+  return res.json()
 }
 
 export default async function ProductsPage() {

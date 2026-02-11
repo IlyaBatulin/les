@@ -6,7 +6,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import type { FilterOptions } from "@/lib/types"
-import { createClientSupabaseClient } from "@/lib/supabase"
 
 interface FilterSidebarProps {
   onFilterChange: (filters: FilterOptions) => void
@@ -29,62 +28,32 @@ export default function FilterSidebar({ onFilterChange, initialFilters }: Filter
 
   useEffect(() => {
     const fetchFilterOptions = async () => {
-      const supabase = createClientSupabaseClient()
+      const [catRes, prodRes] = await Promise.all([
+        fetch("/api/categories?flat=1"),
+        fetch("/api/products?limit=500"),
+      ])
+      const categories = catRes.ok ? await catRes.json() : []
+      const products = prodRes.ok ? await prodRes.json() : []
 
-      // Fetch categories
-      const { data: categories } = await supabase.from("categories").select("id, name").order("name")
-
-      // Fetch distinct values for each filter field
-      const { data: woodTypes } = await supabase
-        .from("products")
-        .select("wood_type")
-        .not("wood_type", "is", null)
-        .order("wood_type")
-
-      const { data: thicknesses } = await supabase
-        .from("products")
-        .select("thickness")
-        .not("thickness", "is", null)
-        .order("thickness")
-
-      const { data: widths } = await supabase.from("products").select("width").not("width", "is", null).order("width")
-
-      const { data: lengths } = await supabase
-        .from("products")
-        .select("length")
-        .not("length", "is", null)
-        .order("length")
-
-      const { data: grades } = await supabase.from("products").select("grade").not("grade", "is", null).order("grade")
-
-      const { data: moistures } = await supabase
-        .from("products")
-        .select("moisture")
-        .not("moisture", "is", null)
-        .order("moisture")
-
-      const { data: surfaceTreatments } = await supabase
-        .from("products")
-        .select("surface_treatment")
-        .not("surface_treatment", "is", null)
-        .order("surface_treatment")
-
-      const { data: purposes } = await supabase
-        .from("products")
-        .select("purpose")
-        .not("purpose", "is", null)
-        .order("purpose")
+      const woodTypes = [...new Set(products.filter((p: { wood_type?: string }) => p.wood_type).map((p: { wood_type: string }) => p.wood_type))].sort()
+      const thicknesses = [...new Set(products.filter((p: { thickness?: string }) => p.thickness).map((p: { thickness: string }) => p.thickness))].sort()
+      const widths = [...new Set(products.filter((p: { width?: string }) => p.width).map((p: { width: string }) => p.width))].sort()
+      const lengths = [...new Set(products.filter((p: { length?: string }) => p.length).map((p: { length: string }) => p.length))].sort()
+      const grades = [...new Set(products.filter((p: { grade?: string }) => p.grade).map((p: { grade: string }) => p.grade))].sort()
+      const moistures = [...new Set(products.filter((p: { moisture?: string }) => p.moisture).map((p: { moisture: string }) => p.moisture))].sort()
+      const surfaceTreatments = [...new Set(products.filter((p: { surface_treatment?: string }) => p.surface_treatment).map((p: { surface_treatment: string }) => p.surface_treatment))].sort()
+      const purposes = [...new Set(products.filter((p: { purpose?: string }) => p.purpose).map((p: { purpose: string }) => p.purpose))].sort()
 
       setFilterOptions({
-        categories: categories?.map((cat) => ({ id: cat.id.toString(), name: cat.name })) || [],
-        woodTypes: [...new Set(woodTypes?.map((item) => item.wood_type) || [])],
-        thicknesses: [...new Set(thicknesses?.map((item) => item.thickness) || [])],
-        widths: [...new Set(widths?.map((item) => item.width) || [])],
-        lengths: [...new Set(lengths?.map((item) => item.length) || [])],
-        grades: [...new Set(grades?.map((item) => item.grade) || [])],
-        moistures: [...new Set(moistures?.map((item) => item.moisture) || [])],
-        surfaceTreatments: [...new Set(surfaceTreatments?.map((item) => item.surface_treatment) || [])],
-        purposes: [...new Set(purposes?.map((item) => item.purpose) || [])],
+        categories: (categories || []).map((cat: { id: number; name: string }) => ({ id: String(cat.id), name: cat.name })),
+        woodTypes,
+        thicknesses,
+        widths,
+        lengths,
+        grades,
+        moistures,
+        surfaceTreatments,
+        purposes,
       })
     }
 

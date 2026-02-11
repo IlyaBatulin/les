@@ -58,11 +58,14 @@ npm run build
 nano .env.production
 ```
 
-Вставьте ваши переменные:
+Вставьте ваши переменные (см. docs/migration-supabase.md):
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://ohkjgjvsuppbwcnvoquq.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=ваш_ключ
-SUPABASE_SERVICE_ROLE_KEY=ваш_секретный_ключ
+DATABASE_URL=postgresql://user:password@host:port/database?sslmode=require
+NODEMAILER_USER=...
+NODEMAILER_PASSWORD=...
+NODEMAILER_TARGET=Zakaz@vyborplus.ru
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=...
 ```
 
 #### 8. Запустите сайт через PM2

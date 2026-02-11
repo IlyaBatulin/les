@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { FilterOptions } from "@/lib/types"
-import { createClientSupabaseClient } from "@/lib/supabase"
 import { X } from "lucide-react"
 
 interface ModernFilterSidebarProps {
@@ -35,57 +34,44 @@ export default function ModernFilterSidebar({
   const [characteristicFilters, setCharacteristicFilters] = useState<Record<string, string[]>>({})
   const [availableCharacteristics, setAvailableCharacteristics] = useState<string[]>([])
 
-  // Заменим функцию useEffect для fetchFilterOptions на следующую:
   useEffect(() => {
     const fetchFilterOptions = async () => {
-      const supabase = createClientSupabaseClient()
-
-      // Fetch categories
-      const { data: categories } = await supabase.from("categories").select("id, name").order("name")
-
-      // Fetch all products to extract characteristics, filtered by category if specified
-      let productsQuery = supabase.from("products").select("characteristics, category_id")
-
-      // Если выбрана категория, получаем все товары из этой категории и её подкатегорий
+      let categoryIds: number[] = []
       if (selectedCategoryId) {
-        // Сначала получаем все подкатегории выбранной категории
-        const allCategoryIds = await getAllSubcategoryIds(Number(selectedCategoryId))
-        // Добавляем саму выбранную категорию
-        allCategoryIds.push(Number(selectedCategoryId))
-        // Фильтруем товары по всем этим категориям
-        productsQuery = productsQuery.in("category_id", allCategoryIds)
+        const res = await fetch(`/api/categories?descendantIdsOf=${selectedCategoryId}`)
+        const ids = res.ok ? await res.json() : []
+        categoryIds = [Number(selectedCategoryId), ...ids]
       }
 
-      const { data: products } = await productsQuery
+      const params = new URLSearchParams()
+      params.set("limit", "500")
+      categoryIds.forEach((c) => params.append("category", String(c)))
+      const prodRes = await fetch(`/api/products?${params.toString()}`)
+      const products = prodRes.ok ? await prodRes.json() : []
 
-      // Extract unique characteristic keys and values
+      const catRes = await fetch("/api/categories?flat=1")
+      const categories = catRes.ok ? await catRes.json() : []
+
       const characteristicsMap: Record<string, Set<string>> = {}
       const characteristicKeys = new Set<string>()
 
-      products?.forEach((product) => {
+      products?.forEach((product: { characteristics?: Record<string, unknown> }) => {
         if (product.characteristics && typeof product.characteristics === "object") {
           Object.entries(product.characteristics).forEach(([key, value]) => {
             if (value !== null && value !== "") {
               characteristicKeys.add(key)
-
-              if (!characteristicsMap[key]) {
-                characteristicsMap[key] = new Set()
-              }
+              if (!characteristicsMap[key]) characteristicsMap[key] = new Set()
               characteristicsMap[key].add(String(value))
             }
           })
         }
       })
 
-      // Convert Sets to Arrays
       const characteristicsFilters: Record<string, string[]> = {}
       Object.entries(characteristicsMap).forEach(([key, valueSet]) => {
         const values = Array.from(valueSet)
-        
-        // Специальная сортировка для толщины (числовая)
         if (key === "Толщина") {
           characteristicsFilters[key] = values.sort((a, b) => {
-            // Извлекаем числовое значение из строки типа "24 мм"
             const numA = parseFloat(a.replace(/[^\d.,]/g, "").replace(",", "."))
             const numB = parseFloat(b.replace(/[^\d.,]/g, "").replace(",", "."))
             return numA - numB
@@ -97,9 +83,8 @@ export default function ModernFilterSidebar({
 
       setAvailableCharacteristics(Array.from(characteristicKeys).sort())
       setCharacteristicFilters(characteristicsFilters)
-
       setFilterOptions({
-        categories: categories?.map((cat) => ({ id: cat.id.toString(), name: cat.name })) || [],
+        categories: (categories || []).map((c: { id: number; name: string }) => ({ id: String(c.id), name: c.name })),
         woodTypes: [],
         thicknesses: [],
         widths: [],
@@ -207,23 +192,4 @@ export default function ModernFilterSidebar({
       })}
     </div>
   )
-}
-
-// Вспомогательная функция для получения всех ID подкатегорий
-async function getAllSubcategoryIds(categoryId: number): Promise<number[]> {
-  const supabase = createClientSupabaseClient()
-
-  const { data, error } = await supabase.from("categories").select("id").eq("parent_id", categoryId)
-
-  if (error || !data || data.length === 0) {
-    return []
-  }
-
-  const directSubcategoryIds = data.map((cat) => cat.id)
-
-  // Рекурсивно получаем подкатегории подкатегорий
-  const nestedSubcategoryIds = await Promise.all(directSubcategoryIds.map((id) => getAllSubcategoryIds(id)))
-
-  // Сглаживаем массив массивов
-  return [...directSubcategoryIds, ...nestedSubcategoryIds.flat()]
 }

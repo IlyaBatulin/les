@@ -8,73 +8,42 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import AdminLayout from "@/components/admin/admin-layout"
 import { Package, FolderTree, ShoppingBag, TrendingUp } from "lucide-react"
-import { createServerSupabaseClient } from "@/lib/supabase"
+import { adminFetch } from "@/lib/admin-fetch"
 import SalesChart from "@/components/admin/orders/SalesChart"
 import OrdersCountChart from "@/components/admin/orders/OrdersCountChart"
 
 async function getDashboardStats() {
-  const supabase = createServerSupabaseClient()
-
-  // Получаем количество товаров
-  const { count: productsCount } = await supabase.from("products").select("*", { count: "exact", head: true })
-
-  // Получаем количество категорий
-  const { count: categoriesCount } = await supabase.from("categories").select("*", { count: "exact", head: true })
-
-  // Получаем количество заказов
-  const { count: ordersCount } = await supabase.from("orders").select("*", { count: "exact", head: true })
-
-  // Получаем количество новых заказов
-  const { count: newOrdersCount } = await supabase
-    .from("orders")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "new")
-
-  return {
-    productsCount: productsCount || 0,
-    categoriesCount: categoriesCount || 0,
-    ordersCount: ordersCount || 0,
-    newOrdersCount: newOrdersCount || 0,
+  const res = await adminFetch("/api/admin/stats")
+  if (!res.ok) {
+    return { productsCount: 0, categoriesCount: 0, ordersCount: 0, newOrdersCount: 0 }
   }
+  return res.json()
 }
 
-// Получаем сырые данные для графика
 async function getSalesChartData() {
-  const supabase = createServerSupabaseClient()
-  const { data: orders, error } = await supabase
-    .from("orders")
-    .select("created_at, total_amount")
-  if (error || !orders) return []
-
-  // Группируем сумму по месяцу
+  const res = await adminFetch("/api/orders")
+  if (!res.ok) return []
+  const orders = await res.json()
   const map: Record<string, number> = {}
-  orders.forEach(({ created_at, total_amount }) => {
+  orders.forEach(({ created_at, total_amount }: { created_at: string; total_amount: number }) => {
     const d = new Date(created_at)
     const key = d.toLocaleString("ru-RU", { year: "numeric", month: "2-digit" })
     map[key] = (map[key] || 0) + total_amount
   })
-
   return Object.entries(map)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, total]) => ({ month, total }))
 }
 
-// количество заказов по месяцам
 async function getOrdersCountData() {
-  const supabase = createServerSupabaseClient()
-  const { data: orders, error } = await supabase
-    .from("orders")
-    .select("created_at")
-  if (error || !orders) return []
-
+  const res = await adminFetch("/api/orders")
+  if (!res.ok) return []
+  const orders = await res.json()
   const map: Record<string, number> = {}
-  orders.forEach(({ created_at }) => {
-    const m = new Date(created_at).toLocaleString("ru-RU", {
-      year: "numeric", month: "2-digit"
-    })
+  orders.forEach(({ created_at }: { created_at: string }) => {
+    const m = new Date(created_at).toLocaleString("ru-RU", { year: "numeric", month: "2-digit" })
     map[m] = (map[m] || 0) + 1
   })
-
   return Object.entries(map)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, count]) => ({ month, count }))

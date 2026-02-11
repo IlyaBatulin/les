@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Star, ChevronLeft, ChevronRight } from 'lucide-react'
-import { createClientSupabaseClient } from '@/lib/supabase'
 
 type Testimonial = {
   id: number;
@@ -23,28 +22,22 @@ export default function HomeTestimonials() {
     const fetchTestimonials = async () => {
       try {
         setLoading(true)
-        const supabase = createClientSupabaseClient()
-        
-        const { data } = await supabase
-          .from('testimonials')
-          .select('*')
-          .order('created_at', { ascending: false })
-        
-        if (data) {
+        const res = await fetch('/api/testimonials')
+        const data = res.ok ? await res.json() : []
+
+        if (data && Array.isArray(data) && data.length > 0) {
           setTestimonials(data as Testimonial[])
         } else {
-          // Используем демо-отзывы если нет данных
           setTestimonials(getDemoTestimonials())
         }
       } catch (error) {
         console.error('Ошибка при загрузке отзывов:', error)
-        // Используем демо-отзывы при ошибке
         setTestimonials(getDemoTestimonials())
       } finally {
         setLoading(false)
       }
     }
-    
+
     fetchTestimonials()
   }, [])
 

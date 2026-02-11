@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { ChevronDown } from "lucide-react"
-import { createClientSupabaseClient } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 
 interface Category {
@@ -24,43 +23,12 @@ export function MegaNav() {
   useEffect(() => {
     const fetchCategories = async () => {
       setIsLoading(true)
-      const supabase = createClientSupabaseClient()
-
-      // Получаем все категории
-      const { data, error } = await supabase.from("categories").select("*").order("name")
-
-      if (error) {
-        console.error("Ошибка при загрузке категорий:", error)
-        setIsLoading(false)
+      const res = await fetch("/api/categories")
+      if (!res.ok) {
+        console.error("Ошибка при загрузке категорий")
         return
       }
-
-      // Организуем категории в иерархическую структуру
-      const rootCategories: Category[] = []
-      const categoryMap = new Map<number, Category>()
-
-      // Первый проход: создаем карту всех категорий
-      data.forEach((category: Category) => {
-        categoryMap.set(category.id, { ...category, subcategories: [] })
-      })
-
-      // Второй проход: строим иерархию
-      data.forEach((category: Category) => {
-        const categoryWithSubs = categoryMap.get(category.id)!
-
-        if (category.parent_id === null) {
-          rootCategories.push(categoryWithSubs)
-        } else {
-          const parentCategory = categoryMap.get(category.parent_id)
-          if (parentCategory) {
-            if (!parentCategory.subcategories) {
-              parentCategory.subcategories = []
-            }
-            parentCategory.subcategories.push(categoryWithSubs)
-          }
-        }
-      })
-
+      const rootCategories = await res.json()
       setCategories(rootCategories)
       setIsLoading(false)
     }

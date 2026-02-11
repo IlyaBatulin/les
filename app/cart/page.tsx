@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Trash2, ShoppingBag, Plus, Minus, ArrowLeft, CheckCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { createClientSupabaseClient } from "@/lib/supabase"
 
 export default function CartPage() {
   const { items, updateQuantity, removeFromCart, clearCart, totalPrice } = useCart()
@@ -75,68 +74,34 @@ export default function CartPage() {
     setIsSubmitting(true)
 
     try {
-      const supabase = createClientSupabaseClient()
-
-      // Проверяем существование продуктов перед созданием заказа
       if (items.length === 0) {
         throw new Error("Корзина пуста")
       }
 
-      // Проверяем, что все товары существуют в базе данных
-      const productIds = items.map(item => item.product.id)
-      const { data: existingProducts, error: productsError } = await supabase
-        .from("products")
-        .select("id")
-        .in("id", productIds)
-      
-      if (productsError) {
-        throw new Error(productsError.message)
-      }
-      
-      // Проверяем, все ли товары найдены
-      if (!existingProducts || existingProducts.length !== productIds.length) {
-        throw new Error("Некоторые товары в корзине недоступны. Пожалуйста, обновите страницу.")
-      }
-
-      // Создаем заказ в базе данных
-      const { data: order, error: orderError } = await supabase
-        .from("orders")
-        .insert({
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           customer_name: name,
           customer_phone: phone,
           customer_email: email || null,
           delivery_address: address || null,
           comment: comment || null,
           total_amount: totalPrice,
-          status: "new",
-        })
-        .select()
+          items: items.map((item) => ({
+            product_id: item.product.id,
+            quantity: item.quantity,
+            price: item.product.price,
+          })),
+        }),
+      })
 
-      if (orderError) {
-        throw new Error(orderError.message)
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "Ошибка при оформлении заказа")
       }
 
-      // Получаем ID созданного заказа
-      const orderId = order[0].id
-
-      // Добавляем товары заказа
-      const orderItems = items.map(item => ({
-        order_id: orderId,
-        product_id: item.product.id,
-        quantity: item.quantity,
-        price: item.product.price,
-      }))
-
-      const { error: itemsError } = await supabase.from("order_items").insert(orderItems)
-
-      if (itemsError) {
-        console.error("Ошибка при добавлении товаров заказа:", itemsError)
-        
-        // Удаляем заказ, чтобы не оставлять пустые заказы в базе
-        await supabase.from("orders").delete().eq("id", orderId as string)
-        
-        throw new Error("Ошибка при оформлении заказа: " + itemsError.message)
-      }
+      const order = data
 
       // Показываем сообщение об успехе
       toast({
@@ -157,7 +122,7 @@ export default function CartPage() {
           },
           body: JSON.stringify({
             orderDetails: {
-              orderId: order[0].id,
+              orderId: order.id,
               customerName: name,
               customerPhone: phone,
               customerEmail: email || null,

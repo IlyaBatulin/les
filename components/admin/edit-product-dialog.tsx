@@ -11,9 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { updateProduct } from "@/app/admin/products/actions"
-import { createClientSupabaseClient } from "@/lib/supabase"
 import { Loader2, Upload, X, Plus, Trash } from "lucide-react"
-import { v4 as uuidv4 } from "uuid"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -55,15 +53,10 @@ export default function EditProductDialog({ product, onClose }: EditProductDialo
   const [newCharValue, setNewCharValue] = useState("")
 
   useEffect(() => {
-    async function fetchCategories() {
-      const supabase = createClientSupabaseClient()
-      const { data } = await supabase.from("categories").select("*").order("name")
-      if (data) {
-        setCategories(data as unknown as Category[])
-      }
-    }
-
-    fetchCategories()
+    fetch("/api/categories?flat=1", { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => setCategories([]))
   }, [])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,34 +70,21 @@ export default function EditProductDialog({ product, onClose }: EditProductDialo
 
   const uploadImage = async () => {
     if (!imageFile) return null
-
     setIsUploading(true)
     setUploadError(null)
-
     try {
-      const supabase = createClientSupabaseClient()
-      const fileExt = imageFile.name.split(".").pop()
-      const fileName = `${uuidv4()}.${fileExt}`
-      const filePath = `${fileName}`
-
-      // Загружаем файл в хранилище
-      const { data, error } = await supabase.storage.from("product").upload(filePath, imageFile)
-
-      if (error) {
-        console.error("Ошибка при загрузке изображения:", error)
-        setUploadError(`Ошибка загрузки: ${error.message}`)
+      const formData = new FormData()
+      formData.append("file", imageFile)
+      const res = await fetch("/api/admin/upload", { method: "POST", body: formData, credentials: "include" })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setUploadError(err.error || "Ошибка загрузки")
         return null
       }
-
-      // Получаем публичный URL для загруженного изображения
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("product").getPublicUrl(filePath)
-
-      return publicUrl
-    } catch (error: any) {
-      console.error("Ошибка при загрузке изображения:", error)
-      setUploadError(`Ошибка загрузки: ${error.message || "Неизвестная ошибка"}`)
+      const { url } = await res.json()
+      return url
+    } catch {
+      setUploadError("Ошибка загрузки")
       return null
     } finally {
       setIsUploading(false)

@@ -3,6 +3,9 @@
 # dependencies
 /node_modules
 
+# uploads (admin)
+/public/uploads/
+
 # next.js
 /.next/
 /out/
