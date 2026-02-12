@@ -1,7 +1,8 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { adminFetch } from "@/lib/admin-fetch"
+import { getDb } from "@/lib/db"
+import { checkAdminSession } from "@/lib/admin-auth"
 
 interface ProductInput {
   name: string
@@ -20,16 +21,35 @@ interface ProductUpdateInput extends ProductInput {
 }
 
 export async function addProduct(product: ProductInput) {
-  const res = await adminFetch("/api/products", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(product),
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || "Failed to add product")
+  if (!(await checkAdminSession())) {
+    throw new Error("Unauthorized")
   }
+
+  const db = getDb()
+  const { name, description, price, price_per_cubic, image_url, category_id, unit, stock, characteristics } = product
+
+  if (!name || typeof name !== "string" || category_id == null) {
+    throw new Error("Название и категория обязательны")
+  }
+
+  const r = await db.query(
+    `INSERT INTO products (name, description, price, price_per_cubic, image_url, category_id, unit, stock, characteristics)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb) RETURNING *`,
+    [
+      name.trim(),
+      description ?? null,
+      Number(price) ?? 0,
+      price_per_cubic ?? null,
+      image_url ?? null,
+      Number(category_id),
+      unit ?? "шт",
+      Number(stock) ?? 0,
+      JSON.stringify(characteristics || {}),
+    ]
+  )
+
   revalidatePath("/admin/products")
+  return r.rows[0]
 }
 
 export async function updateProduct(product: ProductUpdateInput) {
@@ -38,37 +58,80 @@ export async function updateProduct(product: ProductUpdateInput) {
   if (isNaN(product.category_id) || product.category_id <= 0) throw new Error("Неверная категория товара")
   if (isNaN(product.stock) || product.stock < 0) throw new Error("Количество на складе не может быть отрицательным")
 
+  if (!(await checkAdminSession())) {
+    throw new Error("Unauthorized")
+  }
+
+  const db = getDb()
+  const fields = [
+    "name",
+    "description",
+    "price",
+    "price_per_cubic",
+    "image_url",
+    "category_id",
+    "unit",
+    "stock",
+    "characteristics",
+  ]
+  const updates: string[] = []
+  const values: unknown[] = []
+  let i = 1
+
   const body: Record<string, unknown> = {
     name: product.name.trim(),
     description: product.description?.trim() || null,
     price: product.price,
+    price_per_cubic: product.price_per_cubic ?? null,
     image_url: product.image_url?.trim() || null,
     category_id: product.category_id,
     unit: product.unit,
     stock: product.stock,
     characteristics: product.characteristics || {},
   }
-  if (product.price_per_cubic !== undefined && product.price_per_cubic !== null) {
-    body.price_per_cubic = product.price_per_cubic
+
+  for (const f of fields) {
+    if (f in body) {
+      if (f === "characteristics") {
+        updates.push(`${f} = $${i}::jsonb`)
+        values.push(JSON.stringify(body[f] || {}))
+      } else {
+        updates.push(`${f} = $${i}`)
+        values.push(body[f])
+      }
+      i++
+    }
   }
 
-  const res = await adminFetch(`/api/products/${product.id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || "Ошибка при обновлении товара")
+  if (updates.length === 0) {
+    throw new Error("Нет полей для обновления")
   }
+
+  updates.push("updated_at = NOW()")
+  values.push(product.id)
+
+  const r = await db.query(
+    `UPDATE products SET ${updates.join(", ")} WHERE id = $${i} RETURNING *`,
+    values
+  )
+  if (r.rows.length === 0) {
+    throw new Error("Товар не найден")
+  }
+
   revalidatePath("/admin/products")
+  return r.rows[0]
 }
 
 export async function deleteProduct(productId: number) {
-  const res = await adminFetch(`/api/products/${productId}`, { method: "DELETE" })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || "Failed to delete product")
+  if (!(await checkAdminSession())) {
+    throw new Error("Unauthorized")
   }
+
+  const db = getDb()
+  const r = await db.query("DELETE FROM products WHERE id = $1 RETURNING id", [productId])
+  if (r.rows.length === 0) {
+    throw new Error("Товар не найден")
+  }
+
   revalidatePath("/admin/products")
 }

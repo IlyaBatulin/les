@@ -1,18 +1,12 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
-import { adminFetch } from "@/lib/admin-fetch"
+import { getOrdersForAdmin } from "@/lib/get-orders"
 import ProtectedRoute from "@/components/admin/protected-route"
 import { DataTable } from "@/components/admin/orders/data-table"
 import { columns } from "@/components/admin/orders/columns"
 
-async function getOrders() {
-  const res = await adminFetch("/api/orders")
-  if (!res.ok) return []
-  return res.json()
-}
-
 export default async function OrdersPage() {
-  const fullOrders = await getOrders()
+  const fullOrders = (await getOrdersForAdmin()) ?? []
 
   return (
     <ProtectedRoute>

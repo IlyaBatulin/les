@@ -43,18 +43,6 @@ export default function Header() {
   const router = useRouter()
   const { totalItems, isCartOpen, setIsCartOpen } = useCart()
   const [hoveredCategory, setHoveredCategory] = useState<number | null>(null)
-  const [snowflakes, setSnowflakes] = useState<Array<{ left: string; top: string; delay: string; duration: string }>>([])
-
-  // Генерация снежинок только на клиенте, чтобы избежать hydration mismatch
-  useEffect(() => {
-    const flakes = Array.from({ length: 20 }, () => ({
-      left: `${Math.random() * 100}%`,
-      top: `${Math.random() * 100}%`,
-      delay: `${Math.random() * 5}s`,
-      duration: `${3 + Math.random() * 4}s`,
-    }))
-    setSnowflakes(flakes)
-  }, [])
 
   // Загрузка категорий при монтировании компонента
   useEffect(() => {
@@ -310,26 +298,6 @@ export default function Header() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(220,38,38,0.1),transparent_50%)]"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(34,197,94,0.1),transparent_50%)]"></div>
       </div>
-      
-      {/* Новогодние снежинки - рендерятся только на клиенте */}
-      {snowflakes.length > 0 && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {snowflakes.map((flake, i) => (
-            <div
-              key={i}
-              className="absolute text-white/30 text-xs animate-snow"
-              style={{
-                left: flake.left,
-                top: flake.top,
-                animationDelay: flake.delay,
-                animationDuration: flake.duration,
-              }}
-            >
-              ❄
-            </div>
-          ))}
-        </div>
-      )}
 
       <div className="container mx-auto flex items-center justify-between py-3 px-4 relative z-30">
         <div className="flex items-center gap-4">

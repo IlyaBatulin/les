@@ -1,6 +1,6 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
-import { adminFetch } from "@/lib/admin-fetch"
+import { getOrderById } from "@/lib/get-orders"
 import { notFound } from "next/navigation"
 import ProtectedRoute from "@/components/admin/protected-route"
 import { Button } from "@/components/ui/button"
@@ -10,15 +10,9 @@ import Link from "next/link"
 import OrderStatusForm from "@/components/admin/orders/order-status-form"
 import DeleteOrderButton from "@/components/admin/orders/delete-order-button"
 
-async function getOrder(id: string) {
-  const res = await adminFetch(`/api/orders/${id}`)
-  if (!res.ok) return null
-  return res.json()
-}
-
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const order = await getOrder(id)
+  const order = await getOrderById(id)
 
   if (!order) {
     notFound()

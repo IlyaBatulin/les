@@ -8,26 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import AdminLayout from "@/components/admin/admin-layout"
 import { Package, FolderTree, ShoppingBag, TrendingUp } from "lucide-react"
-import { adminFetch } from "@/lib/admin-fetch"
+import { getOrdersForAdmin, getAdminStats } from "@/lib/get-orders"
 import SalesChart from "@/components/admin/orders/SalesChart"
 import OrdersCountChart from "@/components/admin/orders/OrdersCountChart"
 
-async function getDashboardStats() {
-  const res = await adminFetch("/api/admin/stats")
-  if (!res.ok) {
-    return { productsCount: 0, categoriesCount: 0, ordersCount: 0, newOrdersCount: 0 }
-  }
-  return res.json()
-}
-
-async function getSalesChartData() {
-  const res = await adminFetch("/api/orders")
-  if (!res.ok) return []
-  const orders = await res.json()
+function buildSalesData(orders: { created_at: string; total_amount: number }[]) {
   const map: Record<string, number> = {}
-  orders.forEach(({ created_at, total_amount }: { created_at: string; total_amount: number }) => {
-    const d = new Date(created_at)
-    const key = d.toLocaleString("ru-RU", { year: "numeric", month: "2-digit" })
+  orders.forEach(({ created_at, total_amount }) => {
+    const key = new Date(created_at).toLocaleString("ru-RU", { year: "numeric", month: "2-digit" })
     map[key] = (map[key] || 0) + total_amount
   })
   return Object.entries(map)
@@ -35,12 +23,9 @@ async function getSalesChartData() {
     .map(([month, total]) => ({ month, total }))
 }
 
-async function getOrdersCountData() {
-  const res = await adminFetch("/api/orders")
-  if (!res.ok) return []
-  const orders = await res.json()
+function buildOrdersCountData(orders: { created_at: string }[]) {
   const map: Record<string, number> = {}
-  orders.forEach(({ created_at }: { created_at: string }) => {
+  orders.forEach(({ created_at }) => {
     const m = new Date(created_at).toLocaleString("ru-RU", { year: "numeric", month: "2-digit" })
     map[m] = (map[m] || 0) + 1
   })
@@ -50,9 +35,11 @@ async function getOrdersCountData() {
 }
 
 export default async function AdminPage() {
-  const stats = await getDashboardStats()
-  const salesData = await getSalesChartData()
-  const ordersCountData = await getOrdersCountData()
+  const [statsRes, ordersRes] = await Promise.all([getAdminStats(), getOrdersForAdmin()])
+  const stats = statsRes ?? { productsCount: 0, categoriesCount: 0, ordersCount: 0, newOrdersCount: 0 }
+  const orders = ordersRes ?? []
+  const salesData = buildSalesData(orders)
+  const ordersCountData = buildOrdersCountData(orders)
 
   return (
     <AdminLayout>
