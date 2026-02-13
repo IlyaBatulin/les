@@ -3,14 +3,11 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Отключаем проверку приватных IP для изображений в dev-режиме
   experimental: {
-    // Разрешаем загрузку изображений с приватных IP (только для dev)
-    ...(process.env.NODE_ENV === 'development' && {
-      serverActions: {
-        bodySizeLimit: '2mb',
-      },
-    }),
+    // Лимит для загрузки файлов (админка) — и dev, и production
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
   },
   images: {
     // Отключаем оптимизацию — Next.js не будет загружать изображения сервером,
@@ -27,6 +24,12 @@ const nextConfig = {
       {
         protocol: 'http',
         hostname: 'localhost',
+        port: '',
+        pathname: '/uploads/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'vyborplus.ru',
         port: '',
         pathname: '/uploads/**',
       },

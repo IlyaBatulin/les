@@ -55,7 +55,7 @@ export default function AddCategoryForm({ categories }: AddCategoryFormProps) {
     }
   }
 
-  const uploadImage = async () => {
+  const uploadImage = async (): Promise<string | null> => {
     if (!imageFile) return null
     setIsUploading(true)
     setUploadError(null)
@@ -63,13 +63,13 @@ export default function AddCategoryForm({ categories }: AddCategoryFormProps) {
       const formData = new FormData()
       formData.append("file", imageFile)
       const res = await fetch("/api/admin/upload", { method: "POST", body: formData, credentials: "include" })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        setUploadError(err.error || "Ошибка загрузки")
+        const msg = data.error || "Ошибка загрузки"
+        setUploadError(msg)
         return null
       }
-      const { url } = await res.json()
-      return url
+      return data.url || null
     } catch {
       setUploadError("Ошибка загрузки")
       return null
@@ -87,14 +87,10 @@ export default function AddCategoryForm({ categories }: AddCategoryFormProps) {
     setUploadError(null)
 
     try {
-      // Загружаем изображение, если оно выбрано
-      let imageUrl = null
-      
+      let imageUrl: string | null = null
       if (imageFile) {
         imageUrl = await uploadImage()
-        
-        if (uploadError) {
-          // Если есть ошибка загрузки, прерываем отправку формы
+        if (imageUrl === null) {
           setIsSubmitting(false)
           return
         }

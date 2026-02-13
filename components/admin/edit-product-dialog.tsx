@@ -68,7 +68,7 @@ export default function EditProductDialog({ product, onClose }: EditProductDialo
     }
   }
 
-  const uploadImage = async () => {
+  const uploadImage = async (): Promise<string | null> => {
     if (!imageFile) return null
     setIsUploading(true)
     setUploadError(null)
@@ -76,13 +76,13 @@ export default function EditProductDialog({ product, onClose }: EditProductDialo
       const formData = new FormData()
       formData.append("file", imageFile)
       const res = await fetch("/api/admin/upload", { method: "POST", body: formData, credentials: "include" })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        setUploadError(err.error || "Ошибка загрузки")
+        const msg = data.error || "Ошибка загрузки"
+        setUploadError(msg)
         return null
       }
-      const { url } = await res.json()
-      return url
+      return data.url || null
     } catch {
       setUploadError("Ошибка загрузки")
       return null
@@ -129,17 +129,14 @@ export default function EditProductDialog({ product, onClose }: EditProductDialo
     }
 
     try {
-      // Загружаем изображение, если оно выбрано
       let imageUrlToSave = imageUrl
       if (imageFile) {
         const uploadedUrl = await uploadImage()
-        if (uploadedUrl) {
-          imageUrlToSave = uploadedUrl
-        } else if (uploadError) {
-          // Если есть ошибка загрузки, прерываем отправку формы
+        if (uploadedUrl === null) {
           setIsSubmitting(false)
           return
         }
+        imageUrlToSave = uploadedUrl
       }
 
       await updateProduct({

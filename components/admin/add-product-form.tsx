@@ -51,24 +51,27 @@ export default function AddProductForm({ categories }: AddProductFormProps) {
     }
   }
 
-  const uploadImage = async () => {
-    if (!imageFile) return null
+  const uploadImage = async (): Promise<{ url: string } | { error: string }> => {
+    if (!imageFile) return { error: "Файл не выбран" }
     setIsUploading(true)
     setUploadError(null)
     try {
       const formData = new FormData()
       formData.append("file", imageFile)
       const res = await fetch("/api/admin/upload", { method: "POST", body: formData, credentials: "include" })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        setUploadError(err.error || "Ошибка загрузки")
-        return null
+        const msg = data.error || "Ошибка загрузки"
+        setUploadError(msg)
+        return { error: msg }
       }
-      const { url } = await res.json()
-      return url
+      const url = data.url
+      if (!url) return { error: "Сервер не вернул URL" }
+      return { url }
     } catch (e) {
-      setUploadError("Ошибка загрузки")
-      return null
+      const msg = "Ошибка загрузки"
+      setUploadError(msg)
+      return { error: msg }
     } finally {
       setIsUploading(false)
     }
@@ -80,17 +83,14 @@ export default function AddProductForm({ categories }: AddProductFormProps) {
     setUploadError(null)
 
     try {
-      // Загружаем изображение, если оно выбрано
       let imageUrlToSave = imageUrl
       if (imageFile) {
-        const uploadedUrl = await uploadImage()
-        if (uploadedUrl) {
-          imageUrlToSave = uploadedUrl
-        } else if (uploadError) {
-          // Если есть ошибка загрузки, прерываем отправку формы
+        const result = await uploadImage()
+        if ("error" in result) {
           setIsSubmitting(false)
           return
         }
+        imageUrlToSave = result.url
       }
 
       await addProduct({

@@ -35,9 +35,11 @@ export function verifyAdminSession(value: string): boolean {
 
 export async function setAdminSessionCookie(): Promise<void> {
   const c = await cookies()
+  // secure: false при ALLOW_INSECURE_COOKIE=1 (для локального npm run start)
+  const secure = !process.env.ALLOW_INSECURE_COOKIE && process.env.NODE_ENV === "production"
   c.set(COOKIE_NAME, createAdminSession(), {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure,
     sameSite: "lax",
     maxAge: MAX_AGE_MS / 1000,
     path: "/",

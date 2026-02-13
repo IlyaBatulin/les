@@ -97,13 +97,12 @@ export default function EditCategoryDialog({ category, categories, onClose }: Ed
 
       if (imageChanged) {
         if (imageFile) {
-          imageUrl = await uploadImage()
-
-          if (uploadError) {
-            // Если есть ошибка загрузки, прерываем отправку формы
+          const uploadedUrl = await uploadImage()
+          if (uploadedUrl === null) {
             setIsSubmitting(false)
             return
           }
+          imageUrl = uploadedUrl
         } else {
           imageUrl = null
         }
