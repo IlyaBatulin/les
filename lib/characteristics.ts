@@ -99,3 +99,56 @@ export function normalizeCharacteristics(
   })
   return result
 }
+
+/**
+ * Пытается вытащить «Размер» и «Толщину» из названия товара — у части листовых
+ * материалов (АЦЭИД, ЦСП и т.п.) поле characteristics в базе пустое, а размеры
+ * есть только в названии вида «АЦЭИД 1500*1000*10 мм» или «Фанера 10 мм 1525×1525».
+ */
+export function deriveCharacteristicsFromName(name: string | null | undefined): Record<string, string> {
+  if (!name) return {}
+
+  // «10 мм 1525×1525» — сначала толщина, потом размер листа (фанера)
+  let m = name.match(/(\d+(?:[.,]\d+)?)\s*мм\s+(\d+)\s*[*×xх]\s*(\d+)/i)
+  if (m) {
+    return {
+      Толщина: `${m[1]} мм`,
+      Размер: `${m[2]}×${m[3]} мм`,
+    }
+  }
+
+  // «1500*1000*10 мм» — размер листа, последнее число перед «мм» — толщина
+  m = name.match(/(\d+)\s*[*×xх]\s*(\d+)\s*[*×xх]\s*(\d+(?:[.,]\d+)?)\s*мм/i)
+  if (m) {
+    return {
+      Размер: `${m[1]}×${m[2]} мм`,
+      Толщина: `${m[3]} мм`,
+    }
+  }
+
+  // «1500*1000 мм» — просто размер, без толщины
+  m = name.match(/(\d+)\s*[*×xх]\s*(\d+)\s*мм/i)
+  if (m) {
+    return { Размер: `${m[1]}×${m[2]} мм` }
+  }
+
+  return {}
+}
+
+/**
+ * Итоговые характеристики товара для фильтров/отображения: структурные данные
+ * из БД приоритетнее, недостающие «Размер»/«Толщина» подхватываются из названия.
+ */
+export function effectiveCharacteristics(product: {
+  name?: string | null
+  characteristics?: Record<string, unknown> | null
+}): Record<string, string> {
+  const result = normalizeCharacteristics(product.characteristics)
+  const derived = deriveCharacteristicsFromName(product.name)
+  Object.entries(derived).forEach(([key, value]) => {
+    if (!(key in result)) {
+      result[key] = value
+    }
+  })
+  return result
+}

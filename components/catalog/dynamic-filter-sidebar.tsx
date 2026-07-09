@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { X, SlidersHorizontal } from "lucide-react"
 import type { FilterOptions } from "@/lib/types"
-import { normalizeCharacteristics } from "@/lib/characteristics"
+import { effectiveCharacteristics } from "@/lib/characteristics"
 
 interface DynamicFilterSidebarProps {
   onFilterChange: (filters: FilterOptions) => void
@@ -48,8 +48,8 @@ export default function DynamicFilterSidebar({
         // предпочитаем вариант с заглавной буквы.
         const characteristicsMap: Record<string, Map<string, string>> = {}
 
-        products?.forEach((product: { characteristics?: Record<string, unknown> }) => {
-          const normalized = normalizeCharacteristics(product.characteristics)
+        products?.forEach((product: { name?: string; characteristics?: Record<string, unknown> }) => {
+          const normalized = effectiveCharacteristics(product)
           Object.entries(normalized).forEach(([key, value]) => {
             if (!characteristicsMap[key]) {
               characteristicsMap[key] = new Map()

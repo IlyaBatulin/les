@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { CategorySkeleton } from '@/components/ui/category-skeleton'
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { formatKey, normalizeCharacteristics, valuesEqual } from "@/lib/characteristics"
+import { formatKey, effectiveCharacteristics, valuesEqual } from "@/lib/characteristics"
 
 export default function CatalogPage() {
   const isMobile = useIsMobile()
@@ -266,7 +266,7 @@ export default function CatalogPage() {
 
     if (characteristicFilters.length > 0) {
       filteredData = filteredData.filter((product) => {
-        const normalized = normalizeCharacteristics(product.characteristics as Record<string, unknown>)
+        const normalized = effectiveCharacteristics(product)
         return characteristicFilters.every(([key, values]) => {
           // Если фильтр пустой, пропускаем проверку
           if (values.length === 0) return true
