@@ -7,7 +7,7 @@ import Link from "next/link"
 const HomeCta = () => {
   return (
     <section className="py-12 bg-gradient-to-r from-green-800 to-green-600 text-white relative overflow-hidden">
-      <div className="absolute inset-0 bg-[url('/images/warehouse.png')] opacity-10 bg-cover bg-center"></div>
+      <div className="absolute inset-0 bg-[url('/hero.jpg')] opacity-10 bg-cover bg-center"></div>
       <div className="container mx-auto px-4 text-center relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

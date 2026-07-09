@@ -25,6 +25,7 @@ export default function AddProductForm({ categories }: AddProductFormProps) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
+  const [pricePerCubic, setPricePerCubic] = useState("")
   const [imageUrl, setImageUrl] = useState("")
   const [categoryId, setCategoryId] = useState<string>("")
   const [unit, setUnit] = useState("шт")
@@ -42,12 +43,34 @@ export default function AddProductForm({ categories }: AddProductFormProps) {
 
   const router = useRouter()
 
+  const setFileFromBlob = (file: File) => {
+    if (!file.type.startsWith("image/")) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+    setUploadError(null)
+  }
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setImageFile(file)
-      setImagePreview(URL.createObjectURL(file))
-      setUploadError(null) // Сбрасываем ошибку при выборе нового файла
+    if (e.target.files?.[0]) setFileFromBlob(e.target.files[0])
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const file = e.dataTransfer.files?.[0]
+    if (file) setFileFromBlob(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const file = e.clipboardData.files?.[0]
+    if (file?.type.startsWith("image/")) {
+      e.preventDefault()
+      setFileFromBlob(file)
     }
   }
 
@@ -97,7 +120,7 @@ export default function AddProductForm({ categories }: AddProductFormProps) {
         name,
         description: description || null,
         price: Number.parseFloat(price),
-        price_per_cubic: null, // Пока не используем
+        price_per_cubic: pricePerCubic ? Number.parseFloat(pricePerCubic) : null,
         image_url: imageUrlToSave || null,
         category_id: Number.parseInt(categoryId),
         unit,
@@ -207,7 +230,7 @@ export default function AddProductForm({ categories }: AddProductFormProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="price">Цена (₽)</Label>
+              <Label htmlFor="price">Цена за штуку (₽)</Label>
               <Input
                 id="price"
                 type="number"
@@ -215,10 +238,25 @@ export default function AddProductForm({ categories }: AddProductFormProps) {
                 step="0.01"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                required
+                placeholder="0"
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="price-per-cubic">Цена за м³ (₽)</Label>
+              <Input
+                id="price-per-cubic"
+                type="number"
+                min="0"
+                step="0.01"
+                value={pricePerCubic}
+                onChange={(e) => setPricePerCubic(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="unit">Единица измерения</Label>
               <Select value={unit} onValueChange={setUnit}>
@@ -227,6 +265,7 @@ export default function AddProductForm({ categories }: AddProductFormProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="шт">шт</SelectItem>
+                  <SelectItem value="м">м</SelectItem>
                   <SelectItem value="м²">м²</SelectItem>
                   <SelectItem value="м³">м³</SelectItem>
                   <SelectItem value="кг">кг</SelectItem>
@@ -237,9 +276,7 @@ export default function AddProductForm({ categories }: AddProductFormProps) {
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="stock">Количество на складе</Label>
               <Input
@@ -252,7 +289,7 @@ export default function AddProductForm({ categories }: AddProductFormProps) {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 col-span-2">
               <Label htmlFor="category">Категория</Label>
               <Select value={categoryId} onValueChange={setCategoryId} required>
                 <SelectTrigger>
@@ -365,9 +402,14 @@ export default function AddProductForm({ categories }: AddProductFormProps) {
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="image-upload" className="cursor-pointer">
-                  <div className="flex items-center gap-2 border border-dashed border-gray-300 rounded-md p-4 hover:bg-gray-50 transition-colors">
+                  <div
+                    className="flex items-center gap-2 border border-dashed border-gray-300 rounded-md p-4 hover:bg-gray-50 transition-colors"
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onPaste={handlePaste}
+                  >
                     <Upload className="h-5 w-5 text-gray-400" />
-                    <span>Выберите файл или перетащите его сюда</span>
+                    <span>Выберите файл, перетащите или вставьте (Ctrl+V)</span>
                   </div>
                   <input
                     id="image-upload"

@@ -9,6 +9,8 @@ import CookieConsent from "@/components/cookie-consent"
 import { CartProvider } from "@/context/cart-context"
 import { Toaster } from "@/components/ui/toaster"
 import ReactQueryProvider from "@/components/ReactQueryProvider"
+import SmoothScrollProvider from "@/components/smooth-scroll-provider"
+import RouteProgressBar from "@/components/route-progress-bar"
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] })
 
@@ -82,11 +84,14 @@ export default function RootLayout({
         </noscript>
         <ReactQueryProvider>
           <CartProvider>
-            <Header />
-            <main>{children}</main>
-            <Footer />
-            <CookieConsent />
-            <Toaster />
+            <RouteProgressBar />
+            <SmoothScrollProvider>
+              <Header />
+              <main>{children}</main>
+              <Footer />
+              <CookieConsent />
+              <Toaster />
+            </SmoothScrollProvider>
           </CartProvider>
         </ReactQueryProvider>
       </body>

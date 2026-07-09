@@ -6,8 +6,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { X } from "lucide-react"
+import { X, SlidersHorizontal } from "lucide-react"
 import type { FilterOptions } from "@/lib/types"
+import { normalizeCharacteristics } from "@/lib/characteristics"
 
 interface DynamicFilterSidebarProps {
   onFilterChange: (filters: FilterOptions) => void
@@ -21,7 +22,6 @@ export default function DynamicFilterSidebar({
   onFilterChange,
   initialFilters,
   selectedCategoryId,
-  categoryNames = {},
   hideTitle = false
 }: DynamicFilterSidebarProps) {
   const [filters, setFilters] = useState<FilterOptions>(initialFilters)
@@ -33,65 +33,66 @@ export default function DynamicFilterSidebar({
   useEffect(() => {
     const fetchCharacteristics = async () => {
       setIsLoading(true)
-      let categoryIds: number[] = []
-      if (selectedCategoryId) {
-        const res = await fetch(`/api/categories?descendantIdsOf=${selectedCategoryId}`)
-        const ids = res.ok ? await res.json() : []
-        categoryIds = [...ids, Number(selectedCategoryId)]
-      }
+      try {
+        const params = new URLSearchParams()
+        if (selectedCategoryId) {
+          // API сам разворачивает подкатегории
+          params.append("category", selectedCategoryId)
+        }
+        const res = await fetch(`/api/products?${params.toString()}`)
+        const products = res.ok ? await res.json() : []
 
-      const params = new URLSearchParams()
-      categoryIds.forEach((c) => params.append("category", String(c)))
-      const res = await fetch(`/api/products?${params.toString()}`)
-      const products = res.ok ? await res.json() : []
+        // Извлекаем уникальные КАНОНИЧЕСКИЕ ключи и значения характеристик.
+        // Ключи: «thickness» / «Толщина» объединяются в один фильтр.
+        // Значения: дедупликация без учёта регистра («свежий лес» = «Свежий лес»),
+        // предпочитаем вариант с заглавной буквы.
+        const characteristicsMap: Record<string, Map<string, string>> = {}
 
-      // Извлекаем уникальные ключи и значения характеристик
-      const characteristicsMap: Record<string, Set<string>> = {}
-      const characteristicKeys = new Set<string>()
-
-      products?.forEach((product) => {
-        if (product.characteristics && typeof product.characteristics === "object") {
-          Object.entries(product.characteristics).forEach(([key, value]) => {
-            if (value !== null && value !== "") {
-              characteristicKeys.add(key)
-
-              if (!characteristicsMap[key]) {
-                characteristicsMap[key] = new Set()
-              }
-              characteristicsMap[key].add(String(value))
+        products?.forEach((product: { characteristics?: Record<string, unknown> }) => {
+          const normalized = normalizeCharacteristics(product.characteristics)
+          Object.entries(normalized).forEach(([key, value]) => {
+            if (!characteristicsMap[key]) {
+              characteristicsMap[key] = new Map()
+            }
+            const valueKey = value.toLowerCase()
+            const existing = characteristicsMap[key].get(valueKey)
+            if (!existing || (existing[0] !== existing[0].toUpperCase() && value[0] === value[0].toUpperCase())) {
+              characteristicsMap[key].set(valueKey, value)
             }
           })
-        }
-      })
+        })
 
-      // Преобразуем Set в массивы
-      const characteristicsFilters: Record<string, string[]> = {}
-      Object.entries(characteristicsMap).forEach(([key, valueSet]) => {
-        const arr = Array.from(valueSet)
-        
-        // Специальная сортировка для толщины (числовая)
-        if (key === "Толщина") {
-          arr.sort((a, b) => {
-            // Извлекаем числовое значение из строки типа "24 мм"
-            const numA = parseFloat(a.replace(/[^\d.,]/g, "").replace(",", "."))
-            const numB = parseFloat(b.replace(/[^\d.,]/g, "").replace(",", "."))
-            return numA - numB
-          })
-        } else {
-        // Проверяем, все ли значения числа
-        const allNumbers = arr.every(v => /^-?\d+(\.\d+)?$/.test(v))
-        if (allNumbers) {
-          arr.sort((a, b) => Number(a) - Number(b))
-        } else {
-          arr.sort()
+        // Преобразуем в отсортированные массивы
+        const characteristicsFilters: Record<string, string[]> = {}
+        Object.entries(characteristicsMap).forEach(([key, valueMap]) => {
+          const arr = Array.from(valueMap.values())
+          // Числовая сортировка, если значения содержат числа («24 мм», «2.5»)
+          const nums = arr.map((v) => parseFloat(v.replace(/[^\d.,-]/g, "").replace(",", ".")))
+          const allNumeric = nums.every((n) => !Number.isNaN(n))
+          if (allNumeric) {
+            arr.sort((a, b) => {
+              const numA = parseFloat(a.replace(/[^\d.,-]/g, "").replace(",", "."))
+              const numB = parseFloat(b.replace(/[^\d.,-]/g, "").replace(",", "."))
+              return numA - numB
+            })
+          } else {
+            arr.sort((a, b) => a.localeCompare(b, "ru"))
           }
-        }
-        characteristicsFilters[key] = arr
-      })
+          characteristicsFilters[key] = arr
+        })
 
-      setAvailableCharacteristics(Array.from(characteristicKeys).sort())
-      setCharacteristicFilters(characteristicsFilters)
-      setIsLoading(false)
+        // Показываем только фильтры, где есть из чего выбирать (2+ значений)
+        const keys = Object.keys(characteristicsFilters)
+          .filter((k) => characteristicsFilters[k].length >= 2)
+          .sort((a, b) => a.localeCompare(b, "ru"))
+
+        setAvailableCharacteristics(keys)
+        setCharacteristicFilters(characteristicsFilters)
+      } catch (e) {
+        console.error("Ошибка загрузки фильтров:", e)
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     fetchCharacteristics()
@@ -107,7 +108,6 @@ export default function DynamicFilterSidebar({
     setFilters((prev) => {
       const newFilters = { ...prev }
 
-      // Проверяем, существует ли такой тип фильтра
       if (!newFilters[filterType]) {
         newFilters[filterType] = []
       }
@@ -134,39 +134,53 @@ export default function DynamicFilterSidebar({
     onFilterChange(emptyFilters)
   }
 
+  // Количество выбранных значений по ключу
+  const selectedCount = (key: string) => filters[key]?.length || 0
+
   // Проверяем, есть ли активные фильтры
   const hasActiveFilters = Object.entries(filters).some(([key, values]) => key !== "categories" && values.length > 0)
 
   return (
-    <div className="space-y-6">
-      {!hideTitle && <h2 className="text-xl font-semibold">Фильтры</h2>}
-
-      <div className="flex justify-between items-center">
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="text-sm text-gray-500">
-            Сбросить все
-          </Button>
-        )}
-      </div>
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm lg:sticky lg:top-24">
+      {!hideTitle && (
+        <div className="mb-4 flex items-center justify-between border-b border-gray-100 pb-3">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
+            <SlidersHorizontal className="h-4 w-4 text-green-600" />
+            Фильтры
+          </h2>
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="h-7 px-2 text-xs text-gray-500 hover:text-red-600"
+            >
+              Сбросить
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Активные фильтры */}
       {hasActiveFilters && (
         <div className="mb-4">
-          <h3 className="text-sm font-medium mb-2">Активные фильтры</h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {Object.entries(filters).flatMap(([key, values]) =>
               key !== "categories" && values.length > 0
                 ? values.map((value) => (
-                    <Badge key={`${key}-${value}`} className="bg-green-600 hover:bg-green-700">
-                      {formatKey(key)}: {value}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-4 w-4 p-0 ml-1 text-white"
+                    <Badge
+                      key={`${key}-${value}`}
+                      className="gap-1 bg-green-600 pr-1 text-xs font-normal hover:bg-green-700"
+                    >
+                      {value}
+                      <button
+                        type="button"
+                        aria-label={`Убрать фильтр ${value}`}
+                        className="rounded-full p-0.5 hover:bg-green-800"
                         onClick={() => handleFilterChange(key, value)}
                       >
                         <X className="h-3 w-3" />
-                      </Button>
+                      </button>
                     </Badge>
                   ))
                 : [],
@@ -176,26 +190,47 @@ export default function DynamicFilterSidebar({
       )}
 
       {isLoading ? (
-        <div className="py-4 text-center text-gray-500">Загрузка фильтров...</div>
+        <div className="space-y-3 py-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-8 animate-pulse rounded bg-gray-100" />
+          ))}
+        </div>
+      ) : availableCharacteristics.length === 0 ? (
+        <p className="py-2 text-sm text-gray-400">Для этой категории нет фильтров</p>
       ) : (
-        <Accordion type="multiple" className="w-full space-y-2">
-          {/* Фильтры по характеристикам */}
+        <Accordion
+          type="multiple"
+          defaultValue={availableCharacteristics.slice(0, 3)}
+          className="w-full"
+        >
           {availableCharacteristics.map((charKey) => (
-            <AccordionItem key={charKey} value={charKey}>
-              <AccordionTrigger className="text-sm font-medium py-2">{formatKey(charKey)}</AccordionTrigger>
+            <AccordionItem key={charKey} value={charKey} className="border-gray-100">
+              <AccordionTrigger className="py-2.5 text-sm font-medium hover:text-green-700 hover:no-underline">
+                <span className="flex items-center gap-2">
+                  {charKey}
+                  {selectedCount(charKey) > 0 && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-green-600 px-1.5 text-[11px] font-semibold text-white">
+                      {selectedCount(charKey)}
+                    </span>
+                  )}
+                </span>
+              </AccordionTrigger>
               <AccordionContent>
-                <div className="space-y-2 mt-2">
+                <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
                   {characteristicFilters[charKey]?.map((value) => (
-                    <div key={value} className="flex items-center space-x-2">
+                    <label
+                      key={value}
+                      htmlFor={`${charKey}-${value}`}
+                      className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-green-50"
+                    >
                       <Checkbox
                         id={`${charKey}-${value}`}
                         checked={filters[charKey]?.includes(value) || false}
                         onCheckedChange={() => handleFilterChange(charKey, value)}
+                        className="data-[state=checked]:border-green-600 data-[state=checked]:bg-green-600"
                       />
-                      <Label htmlFor={`${charKey}-${value}`} className="text-sm">
-                        {value}
-                      </Label>
-                    </div>
+                      <span className="select-none text-sm text-gray-700">{value}</span>
+                    </label>
                   ))}
                 </div>
               </AccordionContent>
@@ -205,52 +240,4 @@ export default function DynamicFilterSidebar({
       )}
     </div>
   )
-}
-
-// Форматирование ключей характеристик для отображения
-function formatKey(key: string): string {
-  try {
-    // Проверяем, что key является строкой
-    if (!key || typeof key !== 'string') {
-      return String(key || '')
-    }
-
-    // Специальные переводы для английских ключей
-    const translations: Record<string, string> = {
-      'pieces_per_cubic_meter': 'Штук в м³',
-      'pieces per cubic meter': 'Штук в м³',
-      'grade': 'Сорт',
-      'drying': 'Сушка',
-      'wood_type': 'Порода',
-      'size': 'Размер',
-      'standard': 'Стандарт',
-      'thickness': 'Толщина',
-      'width': 'Ширина',
-      'length': 'Длина',
-      'moisture': 'Влажность',
-      'surface_treatment': 'Обработка поверхности',
-      'purpose': 'Назначение'
-    }
-
-    // Проверяем точное совпадение
-    if (translations[key.toLowerCase()]) {
-      return translations[key.toLowerCase()]
-    }
-
-    // Проверяем совпадение с заменой подчеркиваний
-    const normalizedKey = key.replace(/_/g, " ").toLowerCase()
-    if (translations[normalizedKey]) {
-      return translations[normalizedKey]
-    }
-
-    // Если нет перевода, форматируем как обычно
-    return key
-      .replace(/_/g, " ")
-      .split(" ")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ")
-  } catch (error) {
-    console.error('Ошибка в formatKey:', error, 'key:', key)
-    return String(key || '')
-  }
 }

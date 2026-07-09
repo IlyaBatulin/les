@@ -27,23 +27,41 @@ export default function AddCategoryForm({ categories }: AddCategoryFormProps) {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) {
-      setImageFile(null)
-      setImagePreview(null)
-      return
-    }
-
-    const file = e.target.files[0]
+  const setFileFromBlob = (file: File) => {
+    if (!file.type.startsWith("image/")) return
     setImageFile(file)
     setUploadError(null)
-
-    // Create preview
     const reader = new FileReader()
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string)
-    }
+    reader.onloadend = () => setImagePreview(reader.result as string)
     reader.readAsDataURL(file)
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) setFileFromBlob(e.target.files[0])
+    else {
+      setImageFile(null)
+      setImagePreview(null)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const file = e.dataTransfer.files?.[0]
+    if (file) setFileFromBlob(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const file = e.clipboardData.files?.[0]
+    if (file?.type.startsWith("image/")) {
+      e.preventDefault()
+      setFileFromBlob(file)
+    }
   }
 
   const clearImage = () => {
@@ -156,12 +174,22 @@ export default function AddCategoryForm({ categories }: AddCategoryFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="image">Изображение категории (опционально)</Label>
+        <div
+          className="border border-dashed border-gray-300 rounded-md p-4 hover:bg-gray-50 cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onPaste={handlePaste}
+        >
+          <p className="text-sm text-gray-600">Выберите файл, перетащите или вставьте (Ctrl+V)</p>
+        </div>
         <Input 
           id="image" 
           type="file" 
           ref={fileInputRef}
           accept="image/*" 
-          onChange={handleImageChange} 
+          onChange={handleImageChange}
+          className="hidden"
         />
         
         {uploadError && <p className="text-sm text-red-500">{uploadError}</p>}

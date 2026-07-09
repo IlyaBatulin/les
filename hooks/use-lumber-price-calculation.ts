@@ -20,6 +20,22 @@ interface LumberDimensions {
  * Хук для расчета цены пиломатериалов в зависимости от единицы измерения
  */
 export function useLumberPriceCalculation() {
+  const parseNumber = useCallback((value: unknown): number | null => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : null
+    }
+
+    if (typeof value === "string") {
+      const normalized = value.replace(",", ".").match(/\d+(?:\.\d+)?/)
+      if (!normalized) return null
+
+      const parsed = Number(normalized[0])
+      return Number.isFinite(parsed) ? parsed : null
+    }
+
+    return null
+  }, [])
+
   /**
    * Извлекает размеры из названия товара
    * Ожидает формат: "Фанера ФК 10 мм 1525×1525" или "Доска 25×150×6000"
@@ -28,11 +44,11 @@ export function useLumberPriceCalculation() {
     // Паттерны для разных форматов
     const patterns = [
       // Для фанеры: "Фанера ФК 10 мм 1525×1525"
-      /(\d+)\s*мм\s+(\d+)×(\d+)/i,
+      /(\d+)\s*мм\s+(\d+)\s*[×xх]\s*(\d+)/i,
       // Для досок: "Доска 25×150×6000"
-      /(\d+)×(\d+)×(\d+)/i,
+      /(\d+)\s*[×xх]\s*(\d+)\s*[×xх]\s*(\d+)/i,
       // Для брусков: "Брусок 50×50×3000"
-      /(\d+)×(\d+)×(\d+)/i
+      /(\d+)\s*[×xх]\s*(\d+)\s*[×xх]\s*(\d+)/i
     ]
 
     for (const pattern of patterns) {
@@ -63,18 +79,52 @@ export function useLumberPriceCalculation() {
    * Извлекает размеры из характеристик товара
    */
   const extractDimensionsFromCharacteristics = useCallback((characteristics: Record<string, any>): LumberDimensions | null => {
-    const thickness = characteristics?.["Толщина"] || characteristics?.["толщина"]
-    const size = characteristics?.["Размер"] || characteristics?.["размер"]
+    const getCharacteristic = (keys: string[]) => {
+      const entries = Object.entries(characteristics || {})
+      const found = entries.find(([key]) => keys.includes(key.toLowerCase()))
+      return found?.[1]
+    }
+
+    const piecesPerCubicMeter = parseNumber(getCharacteristic([
+      "pieces_per_cubic_meter",
+      "pieces per cubic meter",
+      "штук в м³",
+      "штук в м3",
+    ]))
+
+    if (piecesPerCubicMeter && piecesPerCubicMeter > 0) {
+      const side = Math.cbrt(1 / piecesPerCubicMeter) * 1000
+      return {
+        thickness: side,
+        width: side,
+        length: side
+      }
+    }
+
+    const thickness = getCharacteristic(["толщина", "thickness"])
+    const width = getCharacteristic(["ширина", "width"])
+    const length = getCharacteristic(["длина", "length"])
+    const size = getCharacteristic(["размер", "size", "dimensions"])
+
+    const thicknessValue = parseNumber(thickness)
+    const widthValue = parseNumber(width)
+    const lengthValue = parseNumber(length)
+
+    if (thicknessValue && widthValue && lengthValue) {
+      return {
+        thickness: thicknessValue,
+        width: widthValue,
+        length: lengthValue
+      }
+    }
 
     if (thickness && size) {
       // Извлекаем числовое значение толщины
-      const thicknessValue = typeof thickness === "string" 
-        ? parseInt(thickness.replace(/\D/g, ""))
-        : thickness
+      const thicknessValue = parseNumber(thickness)
 
       // Извлекаем размеры из строки типа "1525×1525" или "1525x1525"
       const sizeMatch = typeof size === "string" 
-        ? size.match(/(\d+)[×x](\d+)/)
+        ? size.match(/(\d+)\s*[×xх]\s*(\d+)/i)
         : null
 
       if (sizeMatch && thicknessValue) {
@@ -86,8 +136,20 @@ export function useLumberPriceCalculation() {
       }
     }
 
+    if (typeof size === "string") {
+      const fullSizeMatch = size.match(/(\d+)\s*[×xх]\s*(\d+)\s*[×xх]\s*(\d+)/i)
+
+      if (fullSizeMatch) {
+        return {
+          thickness: parseInt(fullSizeMatch[1]),
+          width: parseInt(fullSizeMatch[2]),
+          length: parseInt(fullSizeMatch[3])
+        }
+      }
+    }
+
     return null
-  }, [])
+  }, [parseNumber])
 
   /**
    * Вычисляет объем в кубических метрах на основе размеров
@@ -107,37 +169,40 @@ export function useLumberPriceCalculation() {
         return null
       }
 
+      const piecePrice = parseNumber(product.price)
+      const cubicPrice = parseNumber(product.price_per_cubic)
+
       // Попытка извлечь размеры для конверсии
       const dimensionsFromName = extractDimensionsFromName(product.name || '')
       const dimensionsFromChar = extractDimensionsFromCharacteristics(product.characteristics || {})
       const dimensions = dimensionsFromName || dimensionsFromChar
 
       if (unit === "piece") {
-        if (product.price && product.price > 0) {
-          return { price: product.price, displayUnit: "шт" }
+        if (piecePrice && piecePrice > 0) {
+          return { price: piecePrice, displayUnit: "шт" }
         }
 
         // Если цены за штуку нет, но есть цена за куб и размеры — конвертируем
-        if ((product.price_per_cubic || 0) > 0 && dimensions) {
+        if (cubicPrice && cubicPrice > 0 && dimensions) {
           const volume = calculateVolume(dimensions)
-          const piecePrice = (product.price_per_cubic || 0) * volume
-          return { price: piecePrice, displayUnit: "шт" }
+          const calculatedPiecePrice = cubicPrice * volume
+          return { price: calculatedPiecePrice, displayUnit: "шт" }
         }
 
         return null
       }
 
       if (unit === "cubic") {
-        if ((product.price_per_cubic || 0) > 0) {
-          return { price: product.price_per_cubic as number, displayUnit: "м³" }
+        if (cubicPrice && cubicPrice > 0) {
+          return { price: cubicPrice, displayUnit: "м³" }
         }
 
         // Если цены за куб нет, но есть цена за штуку и размеры — конвертируем
-        if ((product.price || 0) > 0 && dimensions) {
+        if (piecePrice && piecePrice > 0 && dimensions) {
           const volume = calculateVolume(dimensions)
           if (volume > 0) {
-            const cubicPrice = product.price / volume
-            return { price: cubicPrice, displayUnit: "м³" }
+            const calculatedCubicPrice = piecePrice / volume
+            return { price: calculatedCubicPrice, displayUnit: "м³" }
           }
         }
 
@@ -149,7 +214,7 @@ export function useLumberPriceCalculation() {
       console.error('Ошибка в getPrice:', error, 'product:', product, 'unit:', unit)
       return null
     }
-  }, [extractDimensionsFromName, extractDimensionsFromCharacteristics, calculateVolume])
+  }, [parseNumber, extractDimensionsFromName, extractDimensionsFromCharacteristics, calculateVolume])
 
   /**
    * Конвертирует цену между единицами измерения

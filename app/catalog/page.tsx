@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { CategorySkeleton } from '@/components/ui/category-skeleton'
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { formatKey, normalizeCharacteristics, valuesEqual } from "@/lib/characteristics"
 
 export default function CatalogPage() {
   const isMobile = useIsMobile()
@@ -260,23 +261,21 @@ export default function CatalogPage() {
       )
     }
 
-    // Фильтрация по характеристикам
+    // Фильтрация по характеристикам (ключи фильтров — канонические, рус./англ. дубли объединены)
     const characteristicFilters = Object.entries(activeFilters).filter(([key]) => key !== "categories")
 
     if (characteristicFilters.length > 0) {
       filteredData = filteredData.filter((product) => {
+        const normalized = normalizeCharacteristics(product.characteristics as Record<string, unknown>)
         return characteristicFilters.every(([key, values]) => {
-          // Если у товара нет характеристик или нет такого ключа, он не проходит фильтр
-          if (!product.characteristics || !product.characteristics[key as keyof typeof product.characteristics]) {
-            return values.length === 0 // Если фильтр пустой, пропускаем товар
-          }
-
           // Если фильтр пустой, пропускаем проверку
           if (values.length === 0) return true
 
-          // Проверяем, содержится ли значение характеристики в списке выбранных значений
-          const productValue = String(product.characteristics[key as keyof typeof product.characteristics])
-          return values.includes(productValue)
+          // Если у товара нет такой характеристики — не проходит фильтр
+          const productValue = normalized[key]
+          if (productValue === undefined) return false
+
+          return values.some((v) => valuesEqual(v, productValue))
         })
       })
     }
@@ -744,52 +743,4 @@ export default function CatalogPage() {
       </div>
     </div>
   )
-}
-
-// Форматирование ключей характеристик для отображения
-function formatKey(key: string): string {
-  try {
-    // Проверяем, что key является строкой
-    if (!key || typeof key !== 'string') {
-      return String(key || '')
-    }
-
-    // Специальные переводы для английских ключей
-    const translations: Record<string, string> = {
-      'pieces_per_cubic_meter': 'Штук в м³',
-      'pieces per cubic meter': 'Штук в м³',
-      'grade': 'Сорт',
-      'drying': 'Сушка',
-      'wood_type': 'Порода',
-      'size': 'Размер',
-      'standard': 'Стандарт',
-      'thickness': 'Толщина',
-      'width': 'Ширина',
-      'length': 'Длина',
-      'moisture': 'Влажность',
-      'surface_treatment': 'Обработка поверхности',
-      'purpose': 'Назначение'
-    }
-
-    // Проверяем точное совпадение
-    if (translations[key.toLowerCase()]) {
-      return translations[key.toLowerCase()]
-    }
-
-    // Проверяем совпадение с заменой подчеркиваний
-    const normalizedKey = key.replace(/_/g, " ").toLowerCase()
-    if (translations[normalizedKey]) {
-      return translations[normalizedKey]
-    }
-
-    // Если нет перевода, форматируем как обычно
-    return key
-      .replace(/_/g, " ")
-      .split(" ")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ")
-  } catch (error) {
-    console.error('Ошибка в formatKey:', error, 'key:', key)
-    return String(key || '')
-  }
 }

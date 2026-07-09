@@ -1,6 +1,6 @@
 "use client"
 
-import Image from "next/image"
+import ProductImage from "@/components/product-image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -100,11 +100,10 @@ export function ProductPageClient({ product, relatedProducts, breadcrumbs }: Pro
         {/* Изображение товара */}
         <div className="lg:w-1/2">
           <div className="relative aspect-square rounded-lg overflow-hidden border shadow-sm">
-            <Image
-              src={product.image_url || "/placeholder.svg?height=600&width=600"}
+            <ProductImage
+              src={product.image_url}
               alt={product.name}
-              fill
-              className="object-cover"
+              sizes="(max-width: 1024px) 100vw, 50vw"
               priority
             />
           </div>
@@ -207,11 +206,11 @@ export function ProductPageClient({ product, relatedProducts, breadcrumbs }: Pro
                 className="group border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
               >
                 <div className="relative aspect-square">
-                  <Image
-                    src={relatedProduct.image_url || "/placeholder.svg?height=200&width=200"}
+                  <ProductImage
+                    src={relatedProduct.image_url}
                     alt={relatedProduct.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-200"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    className="group-hover:scale-105 transition-transform duration-200"
                   />
                 </div>
                 <div className="p-4">

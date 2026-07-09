@@ -1,7 +1,6 @@
 import Link from "next/link"
-import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import ProductImage from "@/components/product-image"
 
 interface CategoryCardProps {
   id: number
@@ -22,21 +21,15 @@ export default function CategoryCard({
 }: CategoryCardProps) {
   return (
     <Link href={`/catalog?category=${id}`} className="block">
-      <Card className={`overflow-hidden transition-all hover:shadow-md ${className || ""}`}>
-        <div className="relative h-40 w-full bg-gray-100">
-          {imageUrl ? (
-            <Image
-              src={imageUrl || "/placeholder.svg"}
+      <Card className={`group overflow-hidden border-gray-200 transition-all duration-300 ease-out hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg ${className || ""}`}>
+        <div className="relative h-40 w-full overflow-hidden bg-gray-100">
+          <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-105">
+            <ProductImage
+              src={imageUrl}
               alt={name}
-              fill
-              className="object-cover"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gray-200">
-              <span className="text-gray-400">Нет изображения</span>
-            </div>
-          )}
+          </div>
         </div>
         <CardContent className="p-4">
           <div className="flex items-start justify-between">

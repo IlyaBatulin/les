@@ -1,14 +1,12 @@
 "use client"
 
-import { useState } from "react"
-import Image from "next/image"
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ExternalLink, ShoppingCart } from "lucide-react"
 import type { Product } from "@/lib/types"
 import { AddToCartButton } from "@/components/add-to-cart-button"
-import { LumberPriceToggle, useLumberPriceToggle, PriceUnit } from "@/components/lumber-price-toggle"
+import ProductImage from "@/components/product-image"
+import { LumberPriceToggle, useLumberPriceToggle } from "@/components/lumber-price-toggle"
 import { useLumberCategory } from "@/hooks/use-lumber-category"
 import { useLumberPriceCalculation } from "@/hooks/use-lumber-price-calculation"
 
@@ -18,15 +16,17 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
-  const { isLumberProduct, supportsCubicPricing } = useLumberCategory()
-  const { getPrice, formatPrice } = useLumberPriceCalculation()
+  const { isLumberProduct } = useLumberCategory()
+  const { getPrice } = useLumberPriceCalculation()
   const { priceUnit, handleUnitChange } = useLumberPriceToggle("piece")
 
   const isLumber = isLumberProduct(product)
-  const showPriceToggle = isLumber && supportsCubicPricing(product)
+  const piecePriceInfo = getPrice(product, "piece")
+  const cubicPriceInfo = getPrice(product, "cubic")
+  const showPriceToggle = isLumber && !!piecePriceInfo && !!cubicPriceInfo
 
   // Получаем актуальную цену в зависимости от выбранной единицы
-  const currentPriceInfo = getPrice(product, priceUnit)
+  const currentPriceInfo = priceUnit === "cubic" ? cubicPriceInfo : piecePriceInfo
 
   // Подготавливаем продукт для корзины
   const cartProduct = {
@@ -42,19 +42,15 @@ export default function ProductCard({ product, viewMode = "grid" }: ProductCardP
   // Если режим отображения - список, используем другую разметку
   if (viewMode === "list") {
     return (
-      <Card className="overflow-hidden border border-gray-200 hover:shadow-md transition-shadow duration-300">
+      <Card className="overflow-hidden border border-gray-200 transition-all duration-300 ease-out hover:shadow-lg hover:border-gray-300">
         <div className="flex flex-col sm:flex-row">
           <div className="relative w-full sm:w-60 h-52">
             <Link href={`/product/${product.id}`}>
               <div className="relative w-full h-full">
-                <Image
-                  src={product.image_url || "/placeholder.jpg"}
+                <ProductImage
+                  src={product.image_url}
                   alt={product.name}
-                  fill
-                  className="object-cover bg-white"
                   sizes="(max-width: 768px) 100vw, 240px"
-                  placeholder="blur"
-                  blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWEREiMxUf/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
                 />
               </div>
             </Link>
@@ -114,18 +110,13 @@ export default function ProductCard({ product, viewMode = "grid" }: ProductCardP
   // Стандартный режим отображения (плитка)
   return (
     <Link href={`/product/${product.id}`} className="block h-full">
-      <Card className="overflow-hidden border border-gray-200 hover:shadow-md transition-shadow duration-300 flex flex-col h-full cursor-pointer">
-        <div className="relative pt-[100%]">
-          <div className="absolute inset-0">
-            <Image
-              src={product.image_url || "/placeholder.jpg"}
+      <Card className="group overflow-hidden border border-gray-200 transition-all duration-300 ease-out hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg flex flex-col h-full cursor-pointer">
+        <div className="relative pt-[100%] overflow-hidden">
+          <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-105">
+            <ProductImage
+              src={product.image_url}
               alt={product.name}
-              fill
-              className="object-cover bg-white"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              placeholder="blur"
-              blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWEREiMxUf/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
-              priority
             />
           </div>
           {product.stock <= 0 && (
@@ -156,7 +147,7 @@ export default function ProductCard({ product, viewMode = "grid" }: ProductCardP
                   </>
                 ) : product.price && product.price > 0 ? (
                   <>
-                    {product.price.toLocaleString("ru-RU")} ₽<span className="text-xs font-normal text-gray-500">/{isLumber ? "шт" : (product.unit || "шт")}</span>
+                    {product.price.toLocaleString("ru-RU")} ₽<span className="text-xs font-normal text-gray-500">/{product.unit || "шт"}</span>
                   </>
                 ) : (
                   <span className="text-sm text-gray-500">Цена по запросу</span>
