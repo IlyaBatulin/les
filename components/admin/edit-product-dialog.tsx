@@ -36,6 +36,8 @@ export default function EditProductDialog({ product, onClose }: EditProductDialo
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(product.image_url || null)
   const [categories, setCategories] = useState<Category[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [categoryError, setCategoryError] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
   // Характеристики товара в формате JSON
@@ -55,9 +57,10 @@ export default function EditProductDialog({ product, onClose }: EditProductDialo
 
   useEffect(() => {
     fetch("/api/categories?flat=1", { credentials: "include" })
-      .then((r) => r.ok ? r.json() : [])
+      .then((r) => { if (!r.ok) throw new Error("Categories unavailable"); return r.json() })
       .then((data) => setCategories(Array.isArray(data) ? data : []))
-      .catch(() => setCategories([]))
+      .catch(() => { setCategories([]); setCategoryError(true) })
+      .finally(() => setCategoriesLoading(false))
   }, [])
 
   const setFileFromBlob = (file: File) => {
@@ -265,7 +268,7 @@ export default function EditProductDialog({ product, onClose }: EditProductDialo
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent aria-describedby={undefined} className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Редактировать товар</DialogTitle>
         </DialogHeader>
@@ -523,7 +526,8 @@ export default function EditProductDialog({ product, onClose }: EditProductDialo
             <Button type="button" variant="outline" onClick={onClose}>
               Отмена
             </Button>
-            <Button type="submit" disabled={isSubmitting || isUploading}>
+            {categoryError && <p role="alert" className="text-sm text-red-600">Не удалось загрузить категории. Закройте окно и попробуйте снова.</p>}
+            <Button type="submit" disabled={isSubmitting || isUploading || categoriesLoading || categoryError}>
               {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isUploading ? "Загрузка изображения..." : isSubmitting ? "Сохранение..." : "Сохранить"}
             </Button>

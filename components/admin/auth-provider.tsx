@@ -1,100 +1,52 @@
 "use client"
+import { createContext, useContext, useEffect, useState, useRef, ReactNode, useCallback } from "react"
+import { usePathname } from "next/navigation"
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react"
-import { usePathname, useRouter } from "next/navigation"
-
-// Определение структуры контекста авторизации
 type AuthContextType = {
   isAuthenticated: boolean
+  isLoading: boolean
   login: (username: string, password: string) => Promise<boolean>
-  logout: () => void
+  logout: () => Promise<void>
 }
-
-// Создание контекста с дефолтными значениями
-const AuthContext = createContext<AuthContextType>({
-  isAuthenticated: false,
-  login: async () => false,
-  logout: () => {},
-})
-
-// Хук для использования контекста авторизации
+const AuthContext = createContext<AuthContextType>({ isAuthenticated: false, isLoading: true, login: async () => false, logout: async () => {} })
 export const useAuth = () => useContext(AuthContext)
-
-// Провайдер авторизации
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isLoading, setIsLoading] = useState(true) // Добавляем состояние загрузки
-  const router = useRouter()
+export function AuthProvider({ children, initialAuthenticated }: { children: ReactNode; initialAuthenticated: boolean }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(initialAuthenticated)
+  const [isLoading, setIsLoading] = useState(false)
+  const authVersion = useRef(0)
   const pathname = usePathname()
-
-  // Проверка авторизации при монтировании компонента
-  useEffect(() => {
-    const checkAuth = () => {
-      // Получаем токен из localStorage
-      const authToken = localStorage.getItem("admin_auth_token")
-      setIsAuthenticated(!!authToken)
-      setIsLoading(false) // Загрузка завершена
-    }
-
-    // Проверяем авторизацию
-    checkAuth()
+  const refreshSession = useCallback(async () => {
+    const version = authVersion.current
+    try {
+      const res = await fetch("/api/admin/session", { cache: "no-store", credentials: "include" })
+      const data = res.ok ? await res.json() : null
+      if (version === authVersion.current) setIsAuthenticated(data?.authenticated === true)
+    } catch { if (version === authVersion.current) setIsAuthenticated(false) }
+    finally { setIsLoading(false) }
   }, [])
-
-  // Эффект для редиректа на страницу логина
+  useEffect(() => { void refreshSession() }, [pathname, refreshSession])
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && pathname !== "/admin/login") {
-      router.push("/admin/login")
-    }
-  }, [isAuthenticated, pathname, router, isLoading])
-
-  // Функция входа — проверка на сервере через API
+    window.addEventListener("focus", refreshSession)
+    const timer = setInterval(refreshSession, 60000)
+    return () => { window.removeEventListener("focus", refreshSession); clearInterval(timer) }
+  }, [refreshSession])
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated && pathname !== "/admin/login") window.location.replace("/admin/login")
+  }, [isAuthenticated, isLoading, pathname])
   const login = async (username: string, password: string) => {
-    try {
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.ok) {
-        localStorage.setItem("admin_auth_token", "1")
-        setIsAuthenticated(true)
-        return true
-      }
-    } catch {
-      // ignore
-    }
-    return false
+    authVersion.current++
+    const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || "Не удалось войти")
+    setIsAuthenticated(data.ok === true)
+    authVersion.current++
+    return data.ok === true
   }
-
-  // Функция выхода
   const logout = async () => {
-    try {
-      await fetch("/api/admin/logout", { method: "POST" })
-    } catch {
-      // ignore
-    }
-    localStorage.removeItem("admin_auth_token")
-    setIsAuthenticated(false)
-    router.push("/admin/login")
+    authVersion.current++
+    const res = await fetch("/api/admin/logout", { method: "POST" })
+    if (!res.ok) throw new Error("Не удалось завершить сеанс. Повторите попытку.")
+    window.location.replace("/admin/login")
   }
-
-  // Отображаем спиннер во время загрузки
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <div className="w-10 h-10 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-3 text-gray-600">Загрузка...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Отображаем страницу логина или дочерние компоненты
-  return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={{ isAuthenticated, isLoading, login, logout }}>{children}</AuthContext.Provider>
 }

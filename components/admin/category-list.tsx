@@ -10,9 +10,10 @@ import EditCategoryDialog from "./edit-category-dialog"
 interface CategoryListProps {
   categories: Category[]
   level?: number
+  searchTerm?: string
 }
 
-export default function CategoryList({ categories, level = 0 }: CategoryListProps) {
+export default function CategoryList({ categories, level = 0, searchTerm = "" }: CategoryListProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set())
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
 
@@ -28,7 +29,7 @@ export default function CategoryList({ categories, level = 0 }: CategoryListProp
 
   const handleDelete = async (categoryId: number) => {
     if (confirm("Вы уверены, что хотите удалить эту категорию? Все связанные товары также будут удалены.")) {
-      await deleteCategory(categoryId)
+      try { await deleteCategory(categoryId) } catch (error) { alert(error instanceof Error ? error.message : "Не удалось удалить категорию") }
     }
   }
 
@@ -47,7 +48,8 @@ export default function CategoryList({ categories, level = 0 }: CategoryListProp
   }
 
   // Строим дерево категорий
-  const categoryTree = buildCategoryTree(categories)
+  const term = searchTerm.trim().toLowerCase()
+  const categoryTree = term ? categories.filter(category => category.name.toLowerCase().includes(term) || category.description?.toLowerCase().includes(term)).map(category => ({ ...category, subcategories: [] })) : buildCategoryTree(categories)
 
   // Рекурсивная функция для отображения дерева категорий
   const renderCategoryTree = (cats: Category[], currentLevel = 0) => {
@@ -75,10 +77,10 @@ export default function CategoryList({ categories, level = 0 }: CategoryListProp
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => setEditingCategory(category)}>
+                <Button aria-label={`Редактировать ${category.name}`} variant="ghost" size="icon" onClick={() => setEditingCategory(category)}>
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(category.id)}>
+                <Button aria-label={`Удалить ${category.name}`} variant="ghost" size="icon" onClick={() => handleDelete(category.id)}>
                   <Trash className="h-4 w-4" />
                 </Button>
               </div>

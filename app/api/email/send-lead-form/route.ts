@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import nodemailer from "nodemailer"
+import { mailSettings, escapeHtml } from "@/lib/mail"
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,52 +12,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Используем серверные переменные окружения (без NEXT_PUBLIC_)
-    const user = process.env.NODEMAILER_USER
-    const pass = process.env.NODEMAILER_PASSWORD
-    const to = process.env.NODEMAILER_TARGET
-
-    console.log("SMTP настройки:", { user: user ? "***" : "не задан", pass: pass ? "***" : "не задан", to })
-    console.log('MAIL TO:', to)
-
-    if (!user || !pass || !to) {
-      return NextResponse.json(
-        { error: "SMTP не настроен: отсутствуют переменные NODEMAILER" },
-        { status: 500 }
-      )
-    }
-
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user, pass },
-    })
-
-    // Проверяем подключение к SMTP серверу
-    try {
-      await transporter.verify()
-      console.log("SMTP подключение успешно")
-    } catch (verifyError) {
-      console.error("Ошибка проверки SMTP:", verifyError)
-      return NextResponse.json(
-        { error: `Ошибка подключения к SMTP серверу: ${verifyError.message}` },
-        { status: 500 }
-      )
-    }
+    const { transporter, from, to } = mailSettings()
 
     const html = `
       <h2>Новая заявка с сайта vyborplus.ru</h2>
-      <p><strong>Имя:</strong> ${name}</p>
-      <p><strong>Телефон:</strong> ${phone}</p>
-      ${email ? `<p><strong>Email:</strong> ${email}</p>` : ""}
-      ${message ? `<p><strong>Сообщение:</strong> ${message}</p>` : ""}
+      <p><strong>Имя:</strong> ${escapeHtml(name)}</p>
+      <p><strong>Телефон:</strong> ${escapeHtml(phone)}</p>
+      ${email ? `<p><strong>Email:</strong> ${escapeHtml(email)}</p>` : ""}
+      ${message ? `<p><strong>Сообщение:</strong> ${escapeHtml(message)}</p>` : ""}
       <hr />
       <p style="color:#666;font-size:12px">${new Date().toLocaleString("ru-RU")}</p>
     `
 
     const result = await transporter.sendMail({
-      from: `"ВЫБОР+" <${user}>`,
+      from,
       to,
-      subject: `Заявка с сайта: ${name}`,
+      subject: `Заявка с сайта: ${escapeHtml(name)}`,
       html,
     })
 
@@ -66,7 +36,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Ошибка отправки заявки:", error)
     return NextResponse.json(
-      { error: `Ошибка отправки заявки: ${error.message}` },
+      { error: "Не удалось отправить заявку" },
       { status: 500 }
     )
   }

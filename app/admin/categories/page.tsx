@@ -1,18 +1,17 @@
-import { adminFetch } from "@/lib/admin-fetch"
+import { requireAdminSession } from "@/lib/admin-auth"
+import { getDb } from "@/lib/db"
 import type { Category } from "@/lib/types"
 import AddCategoryForm from "@/components/admin/add-category-form"
 import ProtectedRoute from "@/components/admin/protected-route"
-import { Input } from "@/components/ui/input"
-import { Search } from "lucide-react"
 import CategorySearch from "@/components/admin/category-search"
 
 async function getCategories(): Promise<Category[]> {
-  const res = await adminFetch("/api/categories?flat=1")
-  if (!res.ok) return []
-  return res.json()
+  const result = await getDb().query("SELECT * FROM categories ORDER BY position NULLS LAST, name")
+  return result.rows
 }
 
 export default async function CategoriesPage() {
+  await requireAdminSession()
   const categories = await getCategories()
 
   return (
@@ -27,10 +26,7 @@ export default async function CategoriesPage() {
           <div>
             <div className="mb-4">
               <h2 className="text-xl font-semibold mb-2">Список категорий</h2>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                <Input type="search" placeholder="Поиск категорий..." className="pl-8" id="category-search" />
-              </div>
+
             </div>
             <CategorySearch categories={categories} />
           </div>

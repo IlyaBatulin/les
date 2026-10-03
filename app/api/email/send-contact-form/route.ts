@@ -1,22 +1,13 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { mailSettings, escapeHtml } from "@/lib/mail";
 
 export async function POST(request: Request) {
   try {
     const data = await request.json();
     const { name, phone, email, message } = data;
     
-    // Создаем транспортер для отправки email
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.NODEMAILER_USER!,
-        pass: process.env.NODEMAILER_PASSWORD!
-      }
-    });
-    
+    const { transporter, from, to } = mailSettings();
+
     // Форматируем время для отображения
     const contactDate = new Date().toLocaleString('ru-RU', {
       day: '2-digit',
@@ -27,12 +18,9 @@ export async function POST(request: Request) {
     });
     
     // Отправляем email
-    const mailTo = process.env.NODEMAILER_TARGET!
-    console.log('MAIL TO:', mailTo)
-    
     await transporter.sendMail({
-      from: `"ВЫБОР+" <${process.env.NODEMAILER_USER}>`,
-      to: mailTo,
+      from,
+      to,
       subject: `Новая заявка с сайта`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -43,12 +31,12 @@ export async function POST(request: Request) {
           
           <div style="padding: 16px; border: 1px solid #e5e7eb; border-top: none;">
             <h2 style="margin-top: 0;">Информация о клиенте</h2>
-            <p><strong>Имя:</strong> ${name}</p>
-            <p><strong>Телефон:</strong> ${phone}</p>
-            ${email ? `<p><strong>Email:</strong> ${email}</p>` : ''}
+            <p><strong>Имя:</strong> ${escapeHtml(name)}</p>
+            <p><strong>Телефон:</strong> ${escapeHtml(phone)}</p>
+            ${email ? `<p><strong>Email:</strong> ${escapeHtml(email)}</p>` : ''}
             
             <h2>Сообщение</h2>
-            <p style="white-space: pre-wrap;">${message}</p>
+            <p style="white-space: pre-wrap;">${escapeHtml(message)}</p>
           </div>
         </div>
       `

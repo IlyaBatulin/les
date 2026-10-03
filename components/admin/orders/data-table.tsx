@@ -17,23 +17,20 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "@/components/ui/use-toast"
-import { useQueryClient } from "@tanstack/react-query"
 
-interface DataTableProps<TData extends { id: string }, TValue> {
+interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
 }
 
-export function DataTable<TData extends { id: string }, TValue>({ 
+export function DataTable<TData, TValue>({
   columns, 
   data: initialData 
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [tableData, setTableData] = useState<TData[]>(initialData)
-  const queryClient = useQueryClient()
+  const tableData = initialData
 
   const table = useReactTable({
     data: tableData,
@@ -57,29 +54,6 @@ export function DataTable<TData extends { id: string }, TValue>({
       table.getColumn("status")?.setFilterValue(undefined)
     } else {
       table.getColumn("status")?.setFilterValue(value)
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    try {
-      const response = await fetch(`/api/admin/orders/${id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-      })
-
-      if (response.ok) {
-        setTableData((cd) => cd.filter((item) => item.id !== id))
-        queryClient.invalidateQueries({ queryKey: ["orders"] })
-        toast({ title: "Заказ удален", description: "Запись удалена" })
-      } else {
-        throw new Error()
-      }
-    } catch {
-      toast({
-        title: "Ошибка",
-        description: "Не удалось удалить заказ",
-        variant: "destructive",
-      })
     }
   }
 

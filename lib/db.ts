@@ -2,8 +2,6 @@ import { Pool } from "pg";
 import fs from "node:fs";
 import path from "node:path";
 
-const caPath = path.join(process.cwd(), "certs", "regru-ca.pem");
-const ca = fs.readFileSync(caPath);
 
 /** Парсит DATABASE_URL — без connectionString, чтобы ssl не перезаписывался pg-connection-string. */
 function parseDbUrl(url: string): { host: string; port: number; user: string; password: string; database: string } {
@@ -25,21 +23,20 @@ function parseDbUrl(url: string): { host: string; port: number; user: string; pa
   return { host, port, user, password, database };
 }
 
-const cs = process.env.DATABASE_URL;
-if (!cs) throw new Error("DATABASE_URL is not set");
-const config = parseDbUrl(cs);
-
-export const pool = new Pool({
-  ...config,
-  ssl: {
-    ca,
-    rejectUnauthorized: true,
-    checkServerIdentity: () => undefined,
-  },
-});
-
-console.log("[db] Postgres target host:", config.host);
+let pool: Pool | undefined;
 
 export function getDb() {
+  if (pool) return pool;
+  const cs = process.env.DATABASE_URL;
+  if (!cs) throw new Error("DATABASE_URL is not set");
+  const config = parseDbUrl(cs);
+  const localTest = process.env.NODE_ENV !== "production" && process.env.DATABASE_SSL === "disable" && ["127.0.0.1", "localhost"].includes(config.host);
+  const ca = fs.readFileSync(path.join(process.cwd(), "certs", "regru-ca.pem"));
+  pool = new Pool({
+    ...config,
+    ssl: localTest ? false : { ca, rejectUnauthorized: true, ...(process.env.DATABASE_TLS_SERVERNAME ? { servername: process.env.DATABASE_TLS_SERVERNAME } : {}) },
+    max: localTest ? 1 : 10,
+    connectionTimeoutMillis: 10000,
+  });
   return pool;
 }

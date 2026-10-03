@@ -47,4 +47,4 @@ const SalesChart: FC<SalesChartProps> = ({ data }) => {
   return <Line options={options} data={chartData} />
 }
 
-export default SalesChart 
+export default SalesChart

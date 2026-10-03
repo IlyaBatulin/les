@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { X, SlidersHorizontal } from "lucide-react"
 import type { FilterOptions } from "@/lib/types"
-import { effectiveCharacteristics } from "@/lib/characteristics"
+import { catalogCharacteristics } from "@/lib/characteristics"
 
 interface DynamicFilterSidebarProps {
   onFilterChange: (filters: FilterOptions) => void
@@ -31,6 +31,7 @@ export default function DynamicFilterSidebar({
 
   // Получаем характеристики товаров в зависимости от выбранной категории
   useEffect(() => {
+    const controller = new AbortController()
     const fetchCharacteristics = async () => {
       setIsLoading(true)
       try {
@@ -39,7 +40,7 @@ export default function DynamicFilterSidebar({
           // API сам разворачивает подкатегории
           params.append("category", selectedCategoryId)
         }
-        const res = await fetch(`/api/products?${params.toString()}`)
+        const res = await fetch(`/api/products?${params.toString()}`, { signal: controller.signal })
         const products = res.ok ? await res.json() : []
 
         // Извлекаем уникальные КАНОНИЧЕСКИЕ ключи и значения характеристик.
@@ -49,7 +50,7 @@ export default function DynamicFilterSidebar({
         const characteristicsMap: Record<string, Map<string, string>> = {}
 
         products?.forEach((product: { name?: string; characteristics?: Record<string, unknown> }) => {
-          const normalized = effectiveCharacteristics(product)
+          const normalized = catalogCharacteristics(product)
           Object.entries(normalized).forEach(([key, value]) => {
             if (!characteristicsMap[key]) {
               characteristicsMap[key] = new Map()
@@ -89,13 +90,14 @@ export default function DynamicFilterSidebar({
         setAvailableCharacteristics(keys)
         setCharacteristicFilters(characteristicsFilters)
       } catch (e) {
-        console.error("Ошибка загрузки фильтров:", e)
+        if (!controller.signal.aborted) console.error("Ошибка загрузки фильтров:", e)
       } finally {
-        setIsLoading(false)
+        if (!controller.signal.aborted) setIsLoading(false)
       }
     }
 
     fetchCharacteristics()
+    return () => controller.abort()
   }, [selectedCategoryId])
 
   // Обновляем фильтры при изменении initialFilters
@@ -105,22 +107,12 @@ export default function DynamicFilterSidebar({
 
   // Обработка изменения фильтров
   const handleFilterChange = (filterType: string, value: string) => {
-    setFilters((prev) => {
-      const newFilters = { ...prev }
-
-      if (!newFilters[filterType]) {
-        newFilters[filterType] = []
-      }
-
-      if (newFilters[filterType].includes(value)) {
-        newFilters[filterType] = newFilters[filterType].filter((item) => item !== value)
-      } else {
-        newFilters[filterType] = [...newFilters[filterType], value]
-      }
-
-      onFilterChange(newFilters)
-      return newFilters
-    })
+    const values = filters[filterType] || []
+    const newFilters = { ...filters, [filterType]: values.includes(value)
+      ? values.filter((item) => item !== value)
+      : [...values, value] }
+    setFilters(newFilters)
+    onFilterChange(newFilters)
   }
 
   // Сброс всех фильтров кроме категории

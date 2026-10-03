@@ -1,6 +1,7 @@
+import { requireAdminSession } from "@/lib/admin-auth"
 export const dynamic = 'force-dynamic'
 
-import { adminFetch } from "@/lib/admin-fetch"
+import { getDb } from "@/lib/db"
 import type { Category } from "@/lib/types"
 import AddProductForm from "@/components/admin/add-product-form"
 import ProtectedRoute from "@/components/admin/protected-route"
@@ -9,12 +10,12 @@ import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 async function getCategories(): Promise<Category[]> {
-  const res = await adminFetch("/api/categories?flat=1")
-  if (!res.ok) return []
-  return res.json()
+  const result = await getDb().query("SELECT * FROM categories ORDER BY position NULLS LAST, name")
+  return result.rows
 }
 
 export default async function AddProductPage() {
+  await requireAdminSession()
   const categories = await getCategories()
 
   return (

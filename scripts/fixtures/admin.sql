@@ -1,0 +1,6 @@
+-- Isolated integration fixture. Never apply this file to an existing database.
+CREATE TABLE categories (id serial PRIMARY KEY, name text NOT NULL, description text, parent_id integer REFERENCES categories(id), image_url text, position integer, created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());
+CREATE TABLE products (id serial PRIMARY KEY, name text NOT NULL, description text, price numeric NOT NULL, price_per_cubic numeric, image_url text, category_id integer REFERENCES categories(id), unit text DEFAULT 'шт', stock integer DEFAULT 0, characteristics jsonb DEFAULT '{}', created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());
+CREATE TABLE orders (id serial PRIMARY KEY, customer_name text NOT NULL, customer_phone text NOT NULL, customer_email text, delivery_address text, comment text, total_amount numeric NOT NULL, status text DEFAULT 'new', created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());
+CREATE TABLE order_items (id serial PRIMARY KEY, order_id integer REFERENCES orders(id), product_id integer REFERENCES products(id), quantity numeric NOT NULL, price numeric NOT NULL);
+CREATE TABLE testimonials (id serial PRIMARY KEY, name text, text text, rating integer, image_url text, created_at timestamptz DEFAULT now());

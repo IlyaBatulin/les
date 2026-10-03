@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server"
 import { getDb } from "@/lib/db"
 import { checkAdminSession } from "@/lib/admin-auth"
+import { authorizeAdminRequest, adminErrorResponse } from "@/lib/admin-http"
+import { positiveId, orderStatusSchema, validated } from "@/lib/admin-validation"
+import { removeOrder } from "@/lib/admin-catalog"
+import { revalidatePath } from "next/cache"
 
 export const runtime = "nodejs"
 
@@ -53,50 +57,26 @@ export async function GET(
   }
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  if (!(await checkAdminSession())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-  const { id } = await params
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeAdminRequest(request)
+  if (denied) return denied
   try {
-    const body = await request.json()
-    const status = body?.status
-    if (!status || typeof status !== "string") {
-      return NextResponse.json({ error: "status required" }, { status: 400 })
-    }
-    const db = getDb()
-    const r = await db.query(
-      "UPDATE orders SET status = $2 WHERE id = $1 RETURNING *",
-      [id, status]
-    )
-    if (r.rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    return NextResponse.json(r.rows[0])
-  } catch (e) {
-    console.error("Order PATCH error:", e)
-    return NextResponse.json({ error: "Database error" }, { status: 500 })
-  }
+    const id = positiveId((await params).id)
+    const status = validated(orderStatusSchema, (await request.json()).status)
+    const result = await getDb().query("UPDATE orders SET status=$2 WHERE id=$1 RETURNING *", [id, status])
+    if (!result.rows.length) return NextResponse.json({ error: "Заказ не найден" }, { status: 404 })
+    revalidatePath("/admin/orders")
+    revalidatePath(`/admin/orders/${id}`)
+    return NextResponse.json(result.rows[0])
+  } catch (error) { return adminErrorResponse(error) }
 }
-
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  if (!(await checkAdminSession())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-  const { id } = await params
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeAdminRequest(request)
+  if (denied) return denied
   try {
-    const db = getDb()
-    await db.query("DELETE FROM order_items WHERE order_id = $1", [id])
-    await db.query("DELETE FROM orders WHERE id = $1", [id])
+    await removeOrder((await params).id)
+    revalidatePath("/admin/orders")
+    revalidatePath("/admin")
     return NextResponse.json({ ok: true })
-  } catch (e) {
-    console.error("Order DELETE error:", e)
-    return NextResponse.json({ error: "Database error" }, { status: 500 })
-  }
+  } catch (error) { return adminErrorResponse(error) }
 }

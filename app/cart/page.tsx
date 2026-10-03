@@ -91,6 +91,7 @@ export default function CartPage() {
           items: items.map((item) => ({
             product_id: item.product.id,
             quantity: item.quantity,
+            unit: item.product.unit,
             price: item.product.price,
           })),
         }),
@@ -101,7 +102,6 @@ export default function CartPage() {
         throw new Error(data.error || "Ошибка при оформлении заказа")
       }
 
-      const order = data
 
       // Показываем сообщение об успехе
       toast({
@@ -113,33 +113,7 @@ export default function CartPage() {
       setOrderPlaced(true)
       clearCart()
       
-      // Отправляем уведомление о заказе на email
-      try {
-        await fetch('/api/email/send-order-notification', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orderDetails: {
-              orderId: order.id,
-              customerName: name,
-              customerPhone: phone,
-              customerEmail: email || null,
-              deliveryAddress: address || null,
-              comment: comment || null,
-              totalAmount: totalPrice,
-              items: items.map(item => ({
-                product: item.product,
-                quantity: item.quantity,
-              })),
-            }
-          }),
-        });
-      } catch (emailError) {
-        // Просто логируем ошибку, но не прерываем оформление заказа
-        console.error('Ошибка при отправке уведомления о заказе:', emailError);
-      }
+
     } catch (error) {
       console.error("Ошибка при оформлении заказа:", error)
       toast({
@@ -215,7 +189,7 @@ export default function CartPage() {
 
             <div className="divide-y divide-gray-100">
               {items.map((item) => (
-                <div key={item.product.id} className="p-4 flex items-center">
+                <div key={`${item.product.id}-${item.product.unit}`} className="p-4 flex items-center">
                   <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0 relative">
                     <Image
                       src={item.product.image_url || "/placeholder.svg?height=100&width=100"}
@@ -246,7 +220,7 @@ export default function CartPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-none rounded-l-md"
-                        onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                        onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.product.unit)}
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
@@ -256,7 +230,7 @@ export default function CartPage() {
                         value={item.quantity}
                         onChange={e => {
                           const value = Math.max(1, Number(e.target.value))
-                          updateQuantity(item.product.id, value)
+                          updateQuantity(item.product.id, value, item.product.unit)
                         }}
                         className="w-14 text-center border-0 focus:ring-0 focus:outline-none"
                       />
@@ -264,7 +238,7 @@ export default function CartPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-none rounded-r-md"
-                        onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                        onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.product.unit)}
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
@@ -280,7 +254,7 @@ export default function CartPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => removeFromCart(item.product.id)}
+                      onClick={() => removeFromCart(item.product.id, item.product.unit)}
                       className="text-gray-400 hover:text-red-500"
                     >
                       <Trash2 className="h-4 w-4" />

@@ -68,10 +68,10 @@ export default function HomeProducts() {
   };
 
   return (
-    <section className="py-16 bg-gray-50">
+    <section className="home-products py-16">
       <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-800">Наши товары</h2>
+        <div className="section-heading">
+          <h2>Наши товары</h2>
           <Link href="/catalog" className="text-green-600 hover:text-green-700 font-medium flex items-center">
             Все товары <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
@@ -99,7 +99,7 @@ export default function HomeProducts() {
 function ProductGrid({ products, loading }: { products: Product[], loading: boolean }) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         {[...Array(8)].map((_, i) => (
           <div key={i} className="aspect-square bg-gray-200 rounded-lg animate-pulse"></div>
         ))}
@@ -108,7 +108,7 @@ function ProductGrid({ products, loading }: { products: Product[], loading: bool
   }
   
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
       ))}

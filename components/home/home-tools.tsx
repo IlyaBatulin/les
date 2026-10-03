@@ -4,7 +4,7 @@ import { useState } from "react"
 import { motion } from "framer-motion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calculator, Settings } from "lucide-react"
-import PriceCalculator from "@/components/calculator/price-calculator"
+import Link from "next/link"
 import HouseVisualizer from "@/components/visualizer/house-visualizer"
 
 const HomeTools = () => {
@@ -53,7 +53,7 @@ const HomeTools = () => {
 
             <TabsContent value="calculator" className="mt-0">
               <div className="flex justify-center">
-                <PriceCalculator />
+                <p className="text-center text-gray-600">Для расчёта выберите материал в <Link href="/catalog" className="text-green-700 underline">каталоге</Link> и откройте калькулятор в карточке товара.</p>
               </div>
             </TabsContent>
 

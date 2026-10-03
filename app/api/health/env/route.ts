@@ -1,8 +1,10 @@
+import { checkAdminSession } from "@/lib/admin-auth"
 import { NextResponse } from "next/server"
 
 export const runtime = "nodejs"
 
 export async function GET() {
+  if (!(await checkAdminSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   return NextResponse.json({
     databaseUrlSet: !!process.env.DATABASE_URL,
     supabaseUrlSet: !!(

@@ -1,40 +1,19 @@
 import { NextResponse } from "next/server"
 import { getDb } from "@/lib/db"
-import { checkAdminSession } from "@/lib/admin-auth"
+import { createProduct } from "@/lib/admin-catalog"
+import { authorizeAdminRequest, adminErrorResponse } from "@/lib/admin-http"
+import { revalidateCatalog } from "@/lib/revalidate-catalog"
 
 export const runtime = "nodejs"
 
 export async function POST(request: Request) {
-  if (!(await checkAdminSession())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const denied = await authorizeAdminRequest(request)
+  if (denied) return denied
   try {
-    const body = await request.json()
-    const { name, description, price, price_per_cubic, image_url, category_id, unit, stock, characteristics } = body
-    if (!name || typeof name !== "string" || category_id == null) {
-      return NextResponse.json({ error: "name and category_id required" }, { status: 400 })
-    }
-    const db = getDb()
-    const r = await db.query(
-      `INSERT INTO products (name, description, price, price_per_cubic, image_url, category_id, unit, stock, characteristics)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb) RETURNING *`,
-      [
-        name.trim(),
-        description ?? null,
-        Number(price) ?? 0,
-        price_per_cubic ?? null,
-        image_url ?? null,
-        Number(category_id),
-        unit ?? "шт",
-        Number(stock) ?? 0,
-        JSON.stringify(characteristics || {}),
-      ]
-    )
-    return NextResponse.json(r.rows[0])
-  } catch (e) {
-    console.error("Products POST error:", e)
-    return NextResponse.json({ error: "Database error" }, { status: 500 })
-  }
+    const result = await createProduct(await request.json())
+    revalidateCatalog()
+    return NextResponse.json(result, { status: 201 })
+  } catch (error) { return adminErrorResponse(error) }
 }
 
 export async function GET(request: Request) {
@@ -54,6 +33,7 @@ export async function GET(request: Request) {
   const limitParam = searchParams.get("limit")
   const limit = limitParam ? Math.min(100, Math.max(1, parseInt(limitParam, 10) || 8)) : null
 
+  try {
   const db = getDb()
 
   const conditions: string[] = []
@@ -149,7 +129,6 @@ export async function GET(request: Request) {
     ${limitClause}
   `
 
-  try {
     const result = await db.query(sql, values)
     return NextResponse.json(result.rows)
   } catch (error) {
@@ -159,16 +138,16 @@ export async function GET(request: Request) {
     console.error("  cause:", (error as { cause?: unknown })?.cause)
     console.error("  stack:", err.stack)
     return NextResponse.json(
-      { error: err.message },
+      { error: "Не удалось загрузить каталог" },
       { status: 500 }
     )
   }
 }
 
 async function getAllSubcategoryIds(db: { query: (sql: string, params?: unknown[]) => Promise<{ rows: { id: number }[] }> }, categoryId: number): Promise<number[]> {
-  const result = await db.query("SELECT id FROM categories WHERE parent_id = $1", [categoryId])
-  if (!result.rows || result.rows.length === 0) return []
-  const ids = result.rows.map((r) => r.id)
-  const nested = await Promise.all(ids.map((id) => getAllSubcategoryIds(db, id)))
-  return [...ids, ...nested.flat()]
+  const result = await db.query(`WITH RECURSIVE tree AS (
+    SELECT id FROM categories WHERE id=$1
+    UNION SELECT c.id FROM categories c JOIN tree t ON c.parent_id=t.id
+  ) SELECT id FROM tree WHERE id != $1`, [categoryId])
+  return result.rows.map(row => row.id)
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getDb } from "@/lib/db"
-import { checkAdminSession } from "@/lib/admin-auth"
+
 
 export const runtime = "nodejs"
 
@@ -24,7 +24,9 @@ export async function GET(
 
     const breadcrumbs: { id: number; name: string }[] = []
     let catId: number | null = product.category_id
-    while (catId) {
+    const visited = new Set<number>()
+  while (catId && !visited.has(catId)) {
+    visited.add(catId)
       const cr = await db.query("SELECT id, name, parent_id FROM categories WHERE id = $1", [catId])
       const row = cr.rows[0]
       if (!row) break
@@ -52,65 +54,25 @@ export async function GET(
   }
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  if (!(await checkAdminSession())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-  const { id } = await params
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
-  try {
-    const body = await request.json()
-    const db = getDb()
-    const fields = ["name", "description", "price", "price_per_cubic", "image_url", "category_id", "unit", "stock", "characteristics"]
-    const updates: string[] = []
-    const values: unknown[] = []
-    let i = 1
-    for (const f of fields) {
-      if (f in body) {
-        if (f === "characteristics") {
-          updates.push(`${f} = $${i}::jsonb`)
-          values.push(JSON.stringify(body[f] || {}))
-        } else {
-          updates.push(`${f} = $${i}`)
-          values.push(body[f])
-        }
-        i++
-      }
-    }
-    if (updates.length === 0) return NextResponse.json({ error: "No fields to update" }, { status: 400 })
-    updates.push("updated_at = NOW()")
-    values.push(id)
-    const r = await db.query(
-      `UPDATE products SET ${updates.join(", ")} WHERE id = $${i} RETURNING *`,
-      values
-    )
-    if (r.rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    return NextResponse.json(r.rows[0])
-  } catch (e) {
-    console.error("Product PATCH error:", e)
-    return NextResponse.json({ error: "Database error" }, { status: 500 })
-  }
-}
 
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  if (!(await checkAdminSession())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-  const { id } = await params
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
+import { editProduct, removeProduct } from "@/lib/admin-catalog"
+import { authorizeAdminRequest, adminErrorResponse } from "@/lib/admin-http"
+import { revalidateCatalog } from "@/lib/revalidate-catalog"
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeAdminRequest(request)
+  if (denied) return denied
   try {
-    const db = getDb()
-    const r = await db.query("DELETE FROM products WHERE id = $1 RETURNING id", [id])
-    if (r.rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const result = await editProduct((await params).id, await request.json())
+    revalidateCatalog()
+    return NextResponse.json(result)
+  } catch (error) { return adminErrorResponse(error) }
+}
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeAdminRequest(request)
+  if (denied) return denied
+  try {
+    await removeProduct((await params).id)
+    revalidateCatalog()
     return NextResponse.json({ ok: true })
-  } catch (e) {
-    console.error("Product DELETE error:", e)
-    return NextResponse.json({ error: "Database error" }, { status: 500 })
-  }
+  } catch (error) { return adminErrorResponse(error) }
 }

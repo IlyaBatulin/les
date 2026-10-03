@@ -35,14 +35,14 @@ export default function FilterSidebar({ onFilterChange, initialFilters }: Filter
       const categories = catRes.ok ? await catRes.json() : []
       const products = prodRes.ok ? await prodRes.json() : []
 
-      const woodTypes = [...new Set(products.filter((p: { wood_type?: string }) => p.wood_type).map((p: { wood_type: string }) => p.wood_type))].sort()
-      const thicknesses = [...new Set(products.filter((p: { thickness?: string }) => p.thickness).map((p: { thickness: string }) => p.thickness))].sort()
-      const widths = [...new Set(products.filter((p: { width?: string }) => p.width).map((p: { width: string }) => p.width))].sort()
-      const lengths = [...new Set(products.filter((p: { length?: string }) => p.length).map((p: { length: string }) => p.length))].sort()
-      const grades = [...new Set(products.filter((p: { grade?: string }) => p.grade).map((p: { grade: string }) => p.grade))].sort()
-      const moistures = [...new Set(products.filter((p: { moisture?: string }) => p.moisture).map((p: { moisture: string }) => p.moisture))].sort()
-      const surfaceTreatments = [...new Set(products.filter((p: { surface_treatment?: string }) => p.surface_treatment).map((p: { surface_treatment: string }) => p.surface_treatment))].sort()
-      const purposes = [...new Set(products.filter((p: { purpose?: string }) => p.purpose).map((p: { purpose: string }) => p.purpose))].sort()
+      const woodTypes = [...new Set<string>(products.filter((p: { wood_type?: string }) => p.wood_type).map((p: { wood_type: string }) => p.wood_type))].sort()
+      const thicknesses = [...new Set<string>(products.filter((p: { thickness?: string }) => p.thickness).map((p: { thickness: string }) => p.thickness))].sort()
+      const widths = [...new Set<string>(products.filter((p: { width?: string }) => p.width).map((p: { width: string }) => p.width))].sort()
+      const lengths = [...new Set<string>(products.filter((p: { length?: string }) => p.length).map((p: { length: string }) => p.length))].sort()
+      const grades = [...new Set<string>(products.filter((p: { grade?: string }) => p.grade).map((p: { grade: string }) => p.grade))].sort()
+      const moistures = [...new Set<string>(products.filter((p: { moisture?: string }) => p.moisture).map((p: { moisture: string }) => p.moisture))].sort()
+      const surfaceTreatments = [...new Set<string>(products.filter((p: { surface_treatment?: string }) => p.surface_treatment).map((p: { surface_treatment: string }) => p.surface_treatment))].sort()
+      const purposes = [...new Set<string>(products.filter((p: { purpose?: string }) => p.purpose).map((p: { purpose: string }) => p.purpose))].sort()
 
       setFilterOptions({
         categories: (categories || []).map((cat: { id: number; name: string }) => ({ id: String(cat.id), name: cat.name })),

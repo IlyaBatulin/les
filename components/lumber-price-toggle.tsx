@@ -53,7 +53,7 @@ export function LumberPriceToggle({
           "transition-all duration-200",
           buttonSizeClasses[size],
           selectedUnit === "piece" 
-            ? "bg-white shadow-sm hover:bg-gray-50" 
+            ? "bg-white text-green-900 shadow-sm hover:bg-gray-50"
             : "bg-transparent hover:bg-gray-200 text-gray-600"
         )}
         onClick={() => handleUnitChange("piece")}
@@ -67,7 +67,7 @@ export function LumberPriceToggle({
           "transition-all duration-200",
           buttonSizeClasses[size],
           selectedUnit === "cubic" 
-            ? "bg-white shadow-sm hover:bg-gray-50" 
+            ? "bg-white text-green-900 shadow-sm hover:bg-gray-50"
             : "bg-transparent hover:bg-gray-200 text-gray-600"
         )}
         onClick={() => handleUnitChange("cubic")}

@@ -5,11 +5,12 @@ export async function getOrdersForAdmin() {
   if (!(await checkAdminSession())) return null
   const db = getDb()
   const r = await db.query("SELECT * FROM orders ORDER BY created_at DESC")
-  return r.rows
+  return r.rows.map(order => ({ ...order, total_amount: Number(order.total_amount) }))
 }
 
 export async function getOrderById(id: string) {
   if (!(await checkAdminSession())) return null
+  if (!/^\d+$/.test(id) || !Number.isSafeInteger(Number(id)) || Number(id) <= 0) return null
   const db = getDb()
   const orderRes = await db.query("SELECT * FROM orders WHERE id = $1", [id])
   const order = orderRes.rows[0]

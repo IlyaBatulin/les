@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import type { Product } from "@/lib/types"
+import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Edit, Trash, Info, ChevronLeft, ChevronRight } from "lucide-react"
 import { deleteProduct } from "@/app/admin/products/actions"
@@ -23,22 +24,6 @@ export default function ProductList({ products }: ProductListProps) {
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [filteredProducts, setFilteredProducts] = useState<Product[]>(products)
 
-  // Обработка поиска
-  useEffect(() => {
-    const searchInput = document.getElementById("product-search") as HTMLInputElement
-    if (searchInput) {
-      const handleSearch = () => {
-        setSearchTerm(searchInput.value)
-        setCurrentPage(1) // Сбрасываем на первую страницу при поиске
-      }
-
-      searchInput.addEventListener("input", handleSearch)
-      return () => {
-        searchInput.removeEventListener("input", handleSearch)
-      }
-    }
-  }, [])
-
   // Фильтрация и пагинация
   useEffect(() => {
     let filtered = products
@@ -49,7 +34,7 @@ export default function ProductList({ products }: ProductListProps) {
         (product) =>
           product.name.toLowerCase().includes(lowerSearchTerm) ||
           product.description?.toLowerCase().includes(lowerSearchTerm) ||
-          product.category?.name.toLowerCase().includes(lowerSearchTerm),
+          product.category?.name?.toLowerCase().includes(lowerSearchTerm),
       )
     }
 
@@ -58,7 +43,7 @@ export default function ProductList({ products }: ProductListProps) {
 
   const handleDelete = async (productId: number) => {
     if (confirm("Вы уверены, что хотите удалить этот товар?")) {
-      await deleteProduct(productId)
+      try { await deleteProduct(productId) } catch (error) { alert(error instanceof Error ? error.message : "Не удалось удалить товар") }
     }
   }
 
@@ -67,7 +52,8 @@ export default function ProductList({ products }: ProductListProps) {
   }
 
   // Пагинация
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage))
+  useEffect(() => { setCurrentPage(page => Math.min(page, totalPages)) }, [totalPages])
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage)
 
@@ -133,6 +119,7 @@ export default function ProductList({ products }: ProductListProps) {
 
   return (
     <div className="space-y-4">
+      <Input aria-label="Поиск товаров" type="search" id="product-search" placeholder="Поиск товаров..." value={searchTerm} onChange={event => { setSearchTerm(event.target.value); setCurrentPage(1) }} />
       {/* Информация о результатах поиска */}
       <div className="flex justify-between items-center text-sm text-gray-500">
         <div>
@@ -205,13 +192,14 @@ export default function ProductList({ products }: ProductListProps) {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <Button variant="ghost" size="icon" onClick={() => setEditingProduct(product)} className="h-8 w-8">
+                    <Button aria-label={`Редактировать ${product.name}`} variant="ghost" size="icon" onClick={() => setEditingProduct(product)} className="h-8 w-8">
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDelete(product.id)}
+                      aria-label={`Удалить ${product.name}`}
                       className="h-8 w-8 text-red-500 hover:text-red-600"
                     >
                       <Trash className="h-4 w-4" />

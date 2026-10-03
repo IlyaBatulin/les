@@ -1,3 +1,4 @@
+import { requireAdminSession } from "@/lib/admin-auth"
 export const dynamic = "force-dynamic"
 
 import { getOrdersForAdmin } from "@/lib/get-orders"
@@ -6,6 +7,7 @@ import { DataTable } from "@/components/admin/orders/data-table"
 import { columns } from "@/components/admin/orders/columns"
 
 export default async function OrdersPage() {
+  await requireAdminSession()
   const fullOrders = (await getOrdersForAdmin()) ?? []
 
   return (

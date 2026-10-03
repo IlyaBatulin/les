@@ -1,12 +1,13 @@
 import { cookies } from "next/headers"
-import { createHmac, timingSafeEqual } from "node:crypto"
+import { redirect } from "next/navigation"
+import { createHmac, timingSafeEqual, createHash } from "node:crypto"
 
 const COOKIE_NAME = "admin_session"
 const MAX_AGE_MS = 24 * 60 * 60 * 1000 // 24h
 
 function getSecret(): string {
-  const s = process.env.ADMIN_PASSWORD || process.env.ADMIN_USERNAME
-  if (!s) throw new Error("ADMIN_PASSWORD or ADMIN_USERNAME must be set")
+  const s = process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_PASSWORD
+  if (!s) throw new Error("ADMIN_PASSWORD or ADMIN_SESSION_SECRET must be set")
   return s
 }
 
@@ -20,10 +21,11 @@ export function createAdminSession(): string {
 export function verifyAdminSession(value: string): boolean {
   try {
     const raw = Buffer.from(value, "base64url").toString()
+    if (Buffer.from(raw).toString("base64url") !== value) return false
+    if (!/^\d{13}\.[a-f0-9]{64}$/.test(raw)) return false
     const [ts, sig] = raw.split(".")
-    if (!ts || !sig) return false
-    const t = parseInt(ts, 10)
-    if (isNaN(t) || Date.now() - t > MAX_AGE_MS) return false
+    const t = Number(ts)
+    if (!Number.isSafeInteger(t) || t > Date.now() || Date.now() - t >= MAX_AGE_MS) return false
     const secret = getSecret()
     const expected = createHmac("sha256", secret).update(ts).digest("hex")
     if (expected.length !== sig.length) return false
@@ -36,7 +38,7 @@ export function verifyAdminSession(value: string): boolean {
 export async function setAdminSessionCookie(): Promise<void> {
   const c = await cookies()
   // secure: false при ALLOW_INSECURE_COOKIE=1 (для локального npm run start)
-  const secure = !process.env.ALLOW_INSECURE_COOKIE && process.env.NODE_ENV === "production"
+  const secure = process.env.ALLOW_INSECURE_COOKIE !== "1" && process.env.NODE_ENV === "production"
   c.set(COOKIE_NAME, createAdminSession(), {
     httpOnly: true,
     secure,
@@ -61,5 +63,10 @@ export function checkAdminCredentials(username: string, password: string): boole
   const u = process.env.ADMIN_USERNAME
   const p = process.env.ADMIN_PASSWORD
   if (!u || !p) return false
-  return username === u && password === p
+  const hash = (value: string) => createHash("sha256").update(value).digest()
+  return timingSafeEqual(hash(username), hash(u)) && timingSafeEqual(hash(password), hash(p))
+}
+
+export async function requireAdminSession(): Promise<void> {
+  if (!(await checkAdminSession())) redirect("/admin/login")
 }

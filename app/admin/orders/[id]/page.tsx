@@ -1,3 +1,4 @@
+import { requireAdminSession } from "@/lib/admin-auth"
 export const dynamic = "force-dynamic"
 
 import { getOrderById } from "@/lib/get-orders"
@@ -11,6 +12,7 @@ import OrderStatusForm from "@/components/admin/orders/order-status-form"
 import DeleteOrderButton from "@/components/admin/orders/delete-order-button"
 
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdminSession()
   const { id } = await params
   const order = await getOrderById(id)
 

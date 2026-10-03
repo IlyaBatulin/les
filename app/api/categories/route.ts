@@ -1,29 +1,19 @@
 import { NextResponse } from "next/server"
 import { getDb } from "@/lib/db"
-import { checkAdminSession } from "@/lib/admin-auth"
+import { createCategory } from "@/lib/admin-catalog"
+import { authorizeAdminRequest, adminErrorResponse } from "@/lib/admin-http"
+import { revalidateCatalog } from "@/lib/revalidate-catalog"
 
 export const runtime = "nodejs"
 
 export async function POST(request: Request) {
-  if (!(await checkAdminSession())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const denied = await authorizeAdminRequest(request)
+  if (denied) return denied
   try {
-    const body = await request.json()
-    const { name, description, parent_id, image_url } = body
-    if (!name || typeof name !== "string") {
-      return NextResponse.json({ error: "name required" }, { status: 400 })
-    }
-    const db = getDb()
-    const r = await db.query(
-      `INSERT INTO categories (name, description, parent_id, image_url) VALUES ($1, $2, $3, $4) RETURNING *`,
-      [name.trim(), description ?? null, parent_id ?? null, image_url ?? null]
-    )
-    return NextResponse.json(r.rows[0])
-  } catch (e) {
-    console.error("Categories POST error:", e)
-    return NextResponse.json({ error: "Database error" }, { status: 500 })
-  }
+    const result = await createCategory(await request.json())
+    revalidateCatalog()
+    return NextResponse.json(result, { status: 201 })
+  } catch (error) { return adminErrorResponse(error) }
 }
 
 export async function GET(request: Request) {
@@ -35,32 +25,25 @@ export async function GET(request: Request) {
   const descendantIdsOf = searchParams.get("descendantIdsOf")
   const flat = searchParams.get("flat") === "1"
 
-  const db = getDb()
-
   try {
+    const db = getDb()
     // ID всех потомков категории (рекурсивно)
     if (descendantIdsOf) {
-      const ids: number[] = []
-      let current = [Number(descendantIdsOf)]
-      while (current.length > 0) {
-        const placeholders = current.map((_, i) => `$${i + 1}`).join(",")
-        const r = await db.query(
-          `SELECT id FROM categories WHERE parent_id IN (${placeholders})`,
-          current
-        )
-        const next = r.rows.map((row) => row.id)
-        ids.push(...next)
-        current = next
-      }
-      return NextResponse.json(ids)
+      const result = await db.query(`WITH RECURSIVE tree AS (
+        SELECT id FROM categories WHERE id=$1
+        UNION SELECT c.id FROM categories c JOIN tree t ON c.parent_id=t.id
+      ) SELECT id FROM tree WHERE id != $1`, [Number(descendantIdsOf)])
+      return NextResponse.json(result.rows.map(row => row.id))
     }
 
     // Путь категории для хлебных крошек (от листа к корню)
     if (pathFor) {
       const path: { id: number; name: string }[] = []
       let currentId: number | null = Number(pathFor)
-      while (currentId) {
-        const r = await db.query("SELECT id, name, parent_id FROM categories WHERE id = $1", [currentId])
+      const visited = new Set<number>()
+      while (currentId && !visited.has(currentId)) {
+        visited.add(currentId)
+        const r: { rows: { id: number; name: string; parent_id: number | null }[] } = await db.query("SELECT id, name, parent_id FROM categories WHERE id = $1", [currentId])
         const row = r.rows[0]
         if (!row) break
         path.unshift({ id: row.id, name: row.name })
@@ -152,7 +135,7 @@ export async function GET(request: Request) {
     console.error("  cause:", (error as { cause?: unknown })?.cause)
     console.error("  stack:", err.stack)
     return NextResponse.json(
-      { error: err.message },
+      { error: "Не удалось загрузить каталог" },
       { status: 500 }
     )
   }

@@ -1,21 +1,21 @@
+import { requireAdminSession } from "@/lib/admin-auth"
 export const dynamic = 'force-dynamic'
 
-import { adminFetch } from "@/lib/admin-fetch"
+import { getDb } from "@/lib/db"
 import type { Product } from "@/lib/types"
 import ProductList from "@/components/admin/product-list"
 import ProtectedRoute from "@/components/admin/protected-route"
 import { Button } from "@/components/ui/button"
-import { Plus, Search } from "lucide-react"
+import { Plus } from "lucide-react"
 import Link from "next/link"
-import { Input } from "@/components/ui/input"
 
 async function getProducts(): Promise<Product[]> {
-  const res = await adminFetch("/api/products")
-  if (!res.ok) return []
-  return res.json()
+  const result = await getDb().query("SELECT p.*, json_build_object('id',c.id,'name',c.name) AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id ORDER BY p.id DESC")
+  return result.rows
 }
 
 export default async function ProductsPage() {
+  await requireAdminSession()
   const products = await getProducts()
 
   return (
@@ -33,10 +33,7 @@ export default async function ProductsPage() {
           </Button>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-          <Input type="search" placeholder="Поиск товаров..." className="pl-8" id="product-search" />
-        </div>
+
 
         <ProductList products={products} />
       </div>

@@ -1,3 +1,4 @@
+import { requireAdminSession } from "@/lib/admin-auth"
 // Отключаем SSG/ISR — всегда SSR
 export const dynamic = 'force-dynamic'
 // Или, вместо force-dynamic, можно задать zero-revalidate:
@@ -12,34 +13,14 @@ import { getOrdersForAdmin, getAdminStats } from "@/lib/get-orders"
 import SalesChart from "@/components/admin/orders/SalesChart"
 import OrdersCountChart from "@/components/admin/orders/OrdersCountChart"
 
-function buildSalesData(orders: { created_at: string; total_amount: number }[]) {
-  const map: Record<string, number> = {}
-  orders.forEach(({ created_at, total_amount }) => {
-    const key = new Date(created_at).toLocaleString("ru-RU", { year: "numeric", month: "2-digit" })
-    map[key] = (map[key] || 0) + total_amount
-  })
-  return Object.entries(map)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, total]) => ({ month, total }))
-}
-
-function buildOrdersCountData(orders: { created_at: string }[]) {
-  const map: Record<string, number> = {}
-  orders.forEach(({ created_at }) => {
-    const m = new Date(created_at).toLocaleString("ru-RU", { year: "numeric", month: "2-digit" })
-    map[m] = (map[m] || 0) + 1
-  })
-  return Object.entries(map)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, count]) => ({ month, count }))
-}
+import { buildOrderChartData } from "@/lib/order-stats"
 
 export default async function AdminPage() {
+  await requireAdminSession()
   const [statsRes, ordersRes] = await Promise.all([getAdminStats(), getOrdersForAdmin()])
   const stats = statsRes ?? { productsCount: 0, categoriesCount: 0, ordersCount: 0, newOrdersCount: 0 }
   const orders = ordersRes ?? []
-  const salesData = buildSalesData(orders)
-  const ordersCountData = buildOrdersCountData(orders)
+  const { salesData, ordersCountData } = buildOrderChartData(orders)
 
   return (
     <AdminLayout>

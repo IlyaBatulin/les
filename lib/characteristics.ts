@@ -108,29 +108,23 @@ export function normalizeCharacteristics(
 export function deriveCharacteristicsFromName(name: string | null | undefined): Record<string, string> {
   if (!name) return {}
 
-  // «10 мм 1525×1525» — сначала толщина, потом размер листа (фанера)
-  let m = name.match(/(\d+(?:[.,]\d+)?)\s*мм\s+(\d+)\s*[*×xх]\s*(\d+)/i)
-  if (m) {
-    return {
-      Толщина: `${m[1]} мм`,
-      Размер: `${m[2]}×${m[3]} мм`,
+  const number = "(\\d+(?:[.,]\\d+)?)"
+  const separator = "\\s*[*×xх]\\s*"
+  const triple = name.match(new RegExp(number + separator + number + separator + number + "\\s*мм", "i"))
+  if (triple) {
+    const [, a, b, c] = triple
+    // У доски/бруса последнее измерение — длина, у листа — толщина.
+    if (/(?:брус|доск|вагон|блок.?хаус|имитаци)/i.test(name)) {
+      return { Размер: `${a}×${b}×${c} мм` }
     }
+    return { Размер: `${a}×${b} мм`, Толщина: `${c} мм` }
   }
-
-  // «1500*1000*10 мм» — размер листа, последнее число перед «мм» — толщина
-  m = name.match(/(\d+)\s*[*×xх]\s*(\d+)\s*[*×xх]\s*(\d+(?:[.,]\d+)?)\s*мм/i)
-  if (m) {
-    return {
-      Размер: `${m[1]}×${m[2]} мм`,
-      Толщина: `${m[3]} мм`,
-    }
-  }
-
-  // «1500*1000 мм» — просто размер, без толщины
-  m = name.match(/(\d+)\s*[*×xх]\s*(\d+)\s*мм/i)
-  if (m) {
-    return { Размер: `${m[1]}×${m[2]} мм` }
-  }
+  let m = name.match(new RegExp(number + "\\s*мм\\s+" + number + separator + number, "i"))
+  if (m) return { Толщина: `${m[1]} мм`, Размер: `${m[2]}×${m[3]} мм` }
+  m = name.match(new RegExp(number + separator + number + "\\s+" + number + "\\s*мм", "i"))
+  if (m) return { Размер: `${m[1]}×${m[2]} мм`, Толщина: `${m[3]} мм` }
+  m = name.match(new RegExp(number + separator + number + "\\s*мм", "i"))
+  if (m) return { Размер: `${m[1]}×${m[2]} мм` }
 
   return {}
 }
@@ -150,5 +144,24 @@ export function effectiveCharacteristics(product: {
       result[key] = value
     }
   })
+  return result
+}
+
+/** Характеристики для каталога; одинаковая логика у панели и отбора товаров. */
+export function catalogCharacteristics(product: {
+  name?: string | null
+  characteristics?: Record<string, unknown> | null
+}): Record<string, string> {
+  const result = effectiveCharacteristics(product)
+  const name = product.name || ""
+  if (/(?:брус|доск|вагон|блок.?хаус|имитаци)/i.test(name)) {
+    delete result["Штук в м³"]
+    delete result["Толщина"]
+    const derived = deriveCharacteristicsFromName(name)
+    if (derived.Размер) result.Размер = derived.Размер
+  }
+  if (/фанера/i.test(name) && result.Толщина) {
+    result.Толщина = result.Толщина.replace(/\s*мм$/i, "") + " мм"
+  }
   return result
 }

@@ -64,7 +64,7 @@ function ProductsSkeleton() {
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="home-page flex flex-col min-h-screen">
       <HomeHero />
       {/* Benefits Section */}
       <HomeBenefits />

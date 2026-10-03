@@ -42,20 +42,21 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="fixed top-4 left-4 z-40"
+          className="fixed top-4 left-4 z-[45]"
+          aria-label={sidebarOpen ? "Закрыть меню" : "Открыть меню"}
           onClick={() => setSidebarOpen(!sidebarOpen)}
         >
           {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </Button>
 
         {/* Mobile sidebar backdrop */}
-        {sidebarOpen && <div className="fixed inset-0 bg-black/30 z-30" onClick={() => setSidebarOpen(false)} />}
+        {sidebarOpen && <div className="fixed inset-0 bg-black/30 z-[39]" onClick={() => setSidebarOpen(false)} />}
       </div>
 
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto",
+          "fixed inset-y-0 left-0 z-[40] w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -72,7 +73,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex-1 overflow-y-auto py-4">
             <nav className="px-2 space-y-1">
               {navigation.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+                const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(`${item.href}/`))
 
                 return (
                   <Link
@@ -102,7 +103,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <Button
               variant="outline"
               className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={logout}
+              onClick={() => { void logout().catch(error => alert(error.message)) }}
             >
               <LogOut className="mr-3 h-5 w-5" />
               Выйти
@@ -112,8 +113,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">{children}</main>
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <main className="flex-1 overflow-y-auto p-4 pt-16 lg:p-8">{children}</main>
       </div>
     </div>
   )

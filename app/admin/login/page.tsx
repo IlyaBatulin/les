@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/admin/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,8 +15,8 @@ export default function LoginPage() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [submitting, setSubmitting] = useState(false)
   const { login } = useAuth()
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,12 +27,13 @@ export default function LoginPage() {
       return
     }
 
-    const success = await login(username, password)
-    if (success) {
-      router.push("/admin")
-    } else {
-      setError("Неверный логин или пароль")
-    }
+    if (submitting) return
+    setSubmitting(true)
+    try {
+      if (await login(username, password)) window.location.replace("/admin")
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Ошибка подключения")
+    } finally { setSubmitting(false) }
   }
 
   return (
@@ -77,7 +77,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
+            <Button disabled={submitting} type="submit" className="w-full bg-green-600 hover:bg-green-700">
               Войти
             </Button>
           </form>

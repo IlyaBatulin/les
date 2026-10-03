@@ -25,7 +25,7 @@ export function AddToCartButton({ product, onClick, className = "", showQuantity
   const [isAdded, setIsAdded] = useState(false)
 
   // Проверяем, есть ли товар уже в корзине
-  const existingItem = items.find((item) => item.product.id === product.id)
+  const existingItem = items.find((item) => item.product.id === product.id && item.product.unit === product.unit)
   const quantity = existingItem ? existingItem.quantity : 0
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -52,7 +52,7 @@ export function AddToCartButton({ product, onClick, className = "", showQuantity
           variant="ghost"
           size="icon"
           className="h-9 w-9 rounded-none rounded-l-md"
-          onClick={(e) => updateQuantity(product.id, quantity - 1)}
+          onClick={(e) => updateQuantity(product.id, quantity - 1, product.unit)}
         >
           <Minus className="h-4 w-4" />
         </Button>
@@ -61,7 +61,7 @@ export function AddToCartButton({ product, onClick, className = "", showQuantity
           variant="ghost"
           size="icon"
           className="h-9 w-9 rounded-none rounded-r-md"
-          onClick={(e) => updateQuantity(product.id, quantity + 1)}
+          onClick={(e) => updateQuantity(product.id, quantity + 1, product.unit)}
         >
           <Plus className="h-4 w-4" />
         </Button>

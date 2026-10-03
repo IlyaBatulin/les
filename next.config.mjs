@@ -1,8 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  distDir: process.env.NODE_ENV === "development" && process.env.NEXT_DIST_DIR === ".next-audit" ? ".next-audit" : ".next",
+  turbopack: { root: process.cwd() },
   async rewrites() {
     // Zen verification: позволяет обслуживать URL вида /zen_<token>.html через app router
     const rules = [

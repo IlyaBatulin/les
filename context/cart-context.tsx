@@ -20,8 +20,8 @@ export interface CartItem {
 interface CartContextType {
   items: CartItem[]
   addToCart: (product: CartProduct, quantity?: number) => void
-  removeFromCart: (productId: number) => void
-  updateQuantity: (productId: number, quantity: number) => void
+  removeFromCart: (productId: number, unit?: string) => void
+  updateQuantity: (productId: number, quantity: number, unit?: string) => void
   clearCart: () => void
   totalItems: number
   totalPrice: number
@@ -34,34 +34,33 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
   // Загружаем корзину из localStorage при инициализации
   useEffect(() => {
-    const savedCart = localStorage.getItem("cart")
-    if (savedCart) {
-      try {
-        setItems(JSON.parse(savedCart))
-      } catch (error) {
-        console.error("Ошибка при загрузке корзины:", error)
-        localStorage.removeItem("cart")
-      }
-    }
+    try {
+      const saved = JSON.parse(localStorage.getItem("cart") || "[]")
+      if (Array.isArray(saved)) setItems(saved.filter(item => item?.product && Number.isFinite(item.quantity) && item.quantity > 0))
+    } catch { /* Пустая корзина, если хранилище недоступно или повреждено. */ }
+    setLoaded(true)
   }, [])
 
   // Сохраняем корзину в localStorage при изменении
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(items))
-  }, [items])
+    if (loaded) {
+      try { localStorage.setItem("cart", JSON.stringify(items)) } catch { /* Корзина продолжает работать в памяти. */ }
+    }
+  }, [items, loaded])
 
   // Добавление товара в корзину
   const addToCart = (product: CartProduct, quantity = 1) => {
     setItems((prevItems) => {
-      const existingItem = prevItems.find((item) => item.product.id === product.id)
+      const existingItem = prevItems.find((item) => item.product.id === product.id && item.product.unit === product.unit)
 
       if (existingItem) {
         // Если товар уже в корзине, увеличиваем количество
         return prevItems.map((item) =>
-          item.product.id === product.id ? { ...item, quantity: item.quantity + quantity } : item,
+          item.product.id === product.id && item.product.unit === product.unit ? { product, quantity: item.quantity + quantity } : item,
         )
       } else {
         // Если товара нет в корзине, добавляем его
@@ -74,18 +73,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   // Удаление товара из корзины
-  const removeFromCart = (productId: number) => {
-    setItems((prevItems) => prevItems.filter((item) => item.product.id !== productId))
+  const removeFromCart = (productId: number, unit?: string) => {
+    setItems((prevItems) => prevItems.filter((item) => item.product.id !== productId || (unit !== undefined && item.product.unit !== unit)))
   }
 
   // Обновление количества товара
-  const updateQuantity = (productId: number, quantity: number) => {
+  const updateQuantity = (productId: number, quantity: number, unit?: string) => {
+    if (!Number.isFinite(quantity)) return
     if (quantity <= 0) {
-      removeFromCart(productId)
+      removeFromCart(productId, unit)
       return
     }
 
-    setItems((prevItems) => prevItems.map((item) => (item.product.id === productId ? { ...item, quantity } : item)))
+    setItems((prevItems) => prevItems.map((item) => (item.product.id === productId && (unit === undefined || item.product.unit === unit) ? { ...item, quantity } : item)))
   }
 
   // Очистка корзины

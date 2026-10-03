@@ -39,6 +39,9 @@ export default function Header() {
   const [activeMainCategory, setActiveMainCategory] = useState<number | null>(null)
   const [activeSubCategory, setActiveSubCategory] = useState<number | null>(null)
   const searchRef = useRef<HTMLDivElement>(null)
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchVersion = useRef(0)
+  useEffect(() => () => { if (searchTimer.current) clearTimeout(searchTimer.current); searchVersion.current++ }, [])
   const catalogRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const { totalItems, isCartOpen, setIsCartOpen } = useCart()
@@ -165,7 +168,7 @@ export default function Header() {
   }, [])
 
   // Функция для выполнения поиска
-  const performSearch = async (query: string) => {
+  const performSearch = async (query: string, version: number) => {
     if (query.length < 2) {
       setSearchResults({ products: [], categories: [] })
       setShowResults(false)
@@ -201,11 +204,11 @@ export default function Header() {
         const flat = flatten(Array.isArray(tree) ? tree : [])
         categories.push(...flat.slice(0, 5))
       }
-      setSearchResults({ products, categories })
+      if (version === searchVersion.current) setSearchResults({ products, categories })
     } catch (error) {
       console.error("Ошибка при поиске:", error)
     } finally {
-      setIsSearching(false)
+      if (version === searchVersion.current) setIsSearching(false)
     }
   }
 
@@ -214,12 +217,15 @@ export default function Header() {
     const query = e.target.value
     setSearchQuery(query)
 
-    // Используем debounce для предотвращения слишком частых запросов
-    const timeoutId = setTimeout(() => {
-      performSearch(query)
-    }, 300)
-
-    return () => clearTimeout(timeoutId)
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    const version = ++searchVersion.current
+    if (query.length < 2) {
+      setSearchResults({ products: [], categories: [] })
+      setShowResults(false)
+      setIsSearching(false)
+      return
+    }
+    searchTimer.current = setTimeout(() => { void performSearch(query, version) }, 300)
   }
 
   // Обработчик нажатия Enter в поле поиска
@@ -243,6 +249,9 @@ export default function Header() {
 
   // Очистка поискового запроса
   const clearSearch = () => {
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchVersion.current++
+    setIsSearching(false)
     setSearchQuery("")
     setSearchResults({ products: [], categories: [] })
     setShowResults(false)
@@ -292,13 +301,7 @@ export default function Header() {
   };
 
   return (
-    <header className="w-full bg-white text-gray-800 shadow-md sticky top-0 z-[100] relative">
-      {/* Новогодний фон с узором */}
-      <div className="absolute inset-0 pointer-events-none opacity-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(220,38,38,0.1),transparent_50%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(34,197,94,0.1),transparent_50%)]"></div>
-      </div>
-
+    <header className="site-header w-full sticky top-0 z-[100]">
       <div className="container mx-auto flex items-center justify-between py-3 px-4 relative z-30">
         <div className="flex items-center gap-4">
           <div className="lg:hidden">
@@ -308,7 +311,7 @@ export default function Header() {
             <img 
                 src="/logo.png" 
                 alt="ВЫБОР+" 
-                className="h-12 mr-3" 
+                className="h-10 w-auto"
               />
             <span className="text-xl font-bold text-green-600">
               ВЫБОР+
@@ -319,7 +322,7 @@ export default function Header() {
         <div className="hidden lg:flex items-center space-x-6">
           <div ref={catalogRef} className="relative z-[10001]">
             <button 
-              className="flex items-center gap-1 font-medium hover:text-red-600 transition-colors relative z-30"
+              className="flex items-center gap-1 font-medium hover:text-green-800 transition-colors relative z-30"
               onClick={toggleCatalog}
               onMouseEnter={() => setShowCatalog(true)}
             >
@@ -390,23 +393,23 @@ export default function Header() {
           </div>
           
           
-          <Link href="/delivery" className="font-medium hover:text-red-600 transition-colors">
+          <Link href="/delivery" className="font-medium hover:text-green-800 transition-colors">
             Доставка
           </Link>
           
-          <Link href="/contacts" className="font-medium hover:text-red-600 transition-colors">
+          <Link href="/contacts" className="font-medium hover:text-green-800 transition-colors">
             Контакты
           </Link>
           <div className="flex items-center space-x-4">
             <div className="flex flex-col items-start space-y-1">
-              <a href="tel:+7 (495) 077-97-79" className="text-sm text-gray-600 hover:text-red-600 font-bold">
+              <a href="tel:+7 (495) 077-97-79" className="text-sm text-gray-600 hover:text-green-800 font-bold">
                 +7 (495) 077-97-79
               </a>
-              <a href="tel:+7 (926) 777-97-79" className="text-sm text-gray-600 hover:text-red-600 font-bold">
+              <a href="tel:+7 (926) 777-97-79" className="text-sm text-gray-600 hover:text-green-800 font-bold">
                 +7 (926) 777-97-79
               </a>
             </div>
-            <a href="mailto:zakaz@vyborplus.ru" className="text-sm text-gray-600 hover:text-red-600 font-bold">
+            <a href="mailto:zakaz@vyborplus.ru" className="text-sm text-gray-600 hover:text-green-800 font-bold">
               zakaz@vyborplus.ru
             </a>
           </div>
@@ -496,7 +499,7 @@ export default function Header() {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="relative text-gray-800 hover:text-red-600 hover:bg-gray-100" 
+            className="relative text-gray-800 hover:text-green-800 hover:bg-gray-100"
             onClick={() => setIsCartOpen(true)}
           >
             <ShoppingCart className="h-5 w-5" />

@@ -23,9 +23,14 @@ import {
 } from "@/components/ui/breadcrumb"
 import { CategorySkeleton } from '@/components/ui/category-skeleton'
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { formatKey, effectiveCharacteristics, valuesEqual } from "@/lib/characteristics"
+import { formatKey, catalogCharacteristics, valuesEqual } from "@/lib/characteristics"
 
 export default function CatalogPage() {
+  const params = useSearchParams()
+  return <CatalogContent key={params?.get("category") || "root"} />
+}
+
+function CatalogContent() {
   const isMobile = useIsMobile()
   const useMobileFilters = useMediaQuery("(max-width: 1023px)")
   const router = useRouter()
@@ -37,6 +42,7 @@ export default function CatalogPage() {
   const itemsPerPage = 12
 
   const [categoryPath, setCategoryPath] = useState<{ id: number; name: string }[]>([])
+  const filtersEnabled = !categoryPath.some((category) => /изоспан/i.test(category.name))
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery || "")
@@ -202,19 +208,14 @@ export default function CatalogPage() {
 
   // Обновляем отфильтрованные товары при изменении фильтров или поискового запроса
   useEffect(() => {
-    if (allProducts.length > 0 && showProducts) {
+    if (showProducts) {
       applyFilters()
     }
   }, [activeFilters, sortOrder, searchQuery, allProducts, showProducts])
 
   // Обновляем фильтры при изменении параметра категории
   useEffect(() => {
-    if (categoryParam) {
-      setActiveFilters((prev) => ({
-        ...prev,
-        categories: [categoryParam],
-      }))
-    }
+    setActiveFilters({ categories: categoryParam ? [categoryParam] : [] })
   }, [categoryParam])
 
   // Пагинация
@@ -266,7 +267,7 @@ export default function CatalogPage() {
 
     if (characteristicFilters.length > 0) {
       filteredData = filteredData.filter((product) => {
-        const normalized = effectiveCharacteristics(product)
+        const normalized = catalogCharacteristics(product)
         return characteristicFilters.every(([key, values]) => {
           // Если фильтр пустой, пропускаем проверку
           if (values.length === 0) return true
@@ -503,7 +504,7 @@ export default function CatalogPage() {
         </div>
 
         {/* Мобильная панель фильтров */}
-        {useMobileFilters && showProducts && (
+        {useMobileFilters && showProducts && filtersEnabled && (
           <div className="mb-4">
             <Sheet>
               <SheetTrigger asChild>
@@ -535,7 +536,7 @@ export default function CatalogPage() {
 
         <div className="flex flex-col md:flex-row gap-8">
           {/* Боковая панель с фильтрами (только если показываем товары) */}
-          {!useMobileFilters && showProducts && (
+          {!useMobileFilters && showProducts && filtersEnabled && (
             <div className="w-full lg:w-64 flex-shrink-0">
               <DynamicFilterSidebar
                 onFilterChange={handleFilterChange}
@@ -547,7 +548,7 @@ export default function CatalogPage() {
 
           <div className="flex-1">
             {/* Отображение активных фильтров в десктопной версии (только если показываем товары) */}
-            {(totalFiltersCount > 0 || searchQuery) && !useMobileFilters && showProducts && (
+            {(totalFiltersCount > 0 || searchQuery) && !useMobileFilters && showProducts && filtersEnabled && (
               <div className="flex flex-wrap gap-2 mb-4 items-center">
                 <span className="text-sm text-gray-500">Активные фильтры:</span>
 

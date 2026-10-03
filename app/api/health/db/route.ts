@@ -1,9 +1,11 @@
+import { checkAdminSession } from "@/lib/admin-auth"
 import { NextResponse } from "next/server"
 import { getDb } from "@/lib/db"
 
 export const runtime = "nodejs"
 
 export async function GET() {
+  if (!(await checkAdminSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   try {
     const db = getDb()
     const result = await db.query("SELECT now()")
@@ -18,7 +20,7 @@ export async function GET() {
     console.error("  cause:", (error as { cause?: unknown })?.cause)
     console.error("  stack:", err.stack)
     return NextResponse.json(
-      { ok: false, error: err.message },
+      { ok: false, error: "Подключение к базе недоступно" },
       { status: 500 }
     )
   }

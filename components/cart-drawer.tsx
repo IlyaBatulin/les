@@ -30,7 +30,7 @@ export function CartDrawer() {
           ) : (
             <div className="space-y-4">
               {items.map((item) => (
-                <div key={item.product.id} className="flex items-start border-b border-gray-100 pb-4">
+                <div key={`${item.product.id}-${item.product.unit}`} className="flex items-start border-b border-gray-100 pb-4">
                   <div className="w-16 h-16 relative flex-shrink-0 rounded overflow-hidden">
                     <Image
                       src={item.product.image_url || "/placeholder.svg?height=100&width=100"}
@@ -47,7 +47,7 @@ export function CartDrawer() {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6 text-gray-400 hover:text-red-500 -mt-1 -mr-1"
-                        onClick={() => removeFromCart(item.product.id)}
+                        onClick={() => removeFromCart(item.product.id, item.product.unit)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -66,7 +66,7 @@ export function CartDrawer() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 rounded-none rounded-l-md p-0"
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.product.unit)}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
@@ -76,7 +76,7 @@ export function CartDrawer() {
                           value={item.quantity}
                           onChange={e => {
                             const value = Math.max(1, Number(e.target.value))
-                            updateQuantity(item.product.id, value)
+                            updateQuantity(item.product.id, value, item.product.unit)
                           }}
                           className="w-14 text-center border-0 focus:ring-0 focus:outline-none text-sm"
                         />
@@ -84,7 +84,7 @@ export function CartDrawer() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 rounded-none rounded-r-md p-0"
-                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                          onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.product.unit)}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>

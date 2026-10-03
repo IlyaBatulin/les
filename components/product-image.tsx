@@ -42,8 +42,9 @@ export default function ProductImage({ src, alt, sizes, className, priority }: P
 
   return (
     <Image
-      src={src}
+      src={process.env.NODE_ENV === "development" && src?.startsWith("/uploads/") ? `https://vyborplus.ru${src}` : src}
       alt={alt}
+      unoptimized={process.env.NODE_ENV === "development"}
       fill
       className={cn("object-cover bg-white", className)}
       sizes={sizes || "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"}

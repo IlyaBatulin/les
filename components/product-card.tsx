@@ -42,7 +42,7 @@ export default function ProductCard({ product, viewMode = "grid" }: ProductCardP
   // Если режим отображения - список, используем другую разметку
   if (viewMode === "list") {
     return (
-      <Card className="overflow-hidden border border-gray-200 transition-all duration-300 ease-out hover:shadow-lg hover:border-gray-300">
+      <Card className="product-card overflow-hidden border border-gray-200 transition-all duration-300 ease-out hover:shadow-lg hover:border-gray-300">
         <div className="flex flex-col sm:flex-row">
           <div className="relative w-full sm:w-60 h-52">
             <Link href={`/product/${product.id}`}>
@@ -109,9 +109,9 @@ export default function ProductCard({ product, viewMode = "grid" }: ProductCardP
 
   // Стандартный режим отображения (плитка)
   return (
-    <Link href={`/product/${product.id}`} className="block h-full">
-      <Card className="group overflow-hidden border border-gray-200 transition-all duration-300 ease-out hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg flex flex-col h-full cursor-pointer">
-        <div className="relative pt-[100%] overflow-hidden">
+    <div className="h-full">
+      <Card className="product-card group overflow-hidden border border-gray-200 transition-all duration-300 ease-out hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg flex flex-col h-full cursor-pointer">
+        <Link href={`/product/${product.id}`} className="relative block pt-[85%] overflow-hidden" aria-label={product.name}>
           <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-105">
             <ProductImage
               src={product.image_url}
@@ -122,12 +122,10 @@ export default function ProductCard({ product, viewMode = "grid" }: ProductCardP
           {product.stock <= 0 && (
             <Badge className="absolute top-2 left-2 bg-red-500 text-xs whitespace-nowrap">Нет в наличии</Badge>
           )}
-        </div>
+        </Link>
         
-        <div className="p-3 flex-1 flex flex-col h-full">
-          <h3 className="font-medium text-sm line-clamp-2 hover:text-green-600 transition-colors mb-2">
-            {product.name}
-          </h3>
+        <div className="p-4 flex-1 flex flex-col h-full">
+          <Link href={`/product/${product.id}`}><h3 className="font-medium text-sm line-clamp-2 hover:text-green-600 transition-colors mb-4">{product.name}</h3></Link>
           
           <div className="mt-auto">
             {showPriceToggle && (
@@ -166,6 +164,6 @@ export default function ProductCard({ product, viewMode = "grid" }: ProductCardP
           </div>
         </div>
       </Card>
-    </Link>
+    </div>
   )
 }
