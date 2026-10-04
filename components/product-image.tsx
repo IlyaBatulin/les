@@ -1,8 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import previewManifest from "@/lib/catalog-image-previews.json"
+
+const previews = previewManifest as Record<string, { src: string; width: number }[]>
 
 interface ProductImageProps {
   src?: string | null
@@ -17,14 +20,9 @@ interface ProductImageProps {
  * показываем логотип «Выбор+» на светлом фоне.
  */
 export default function ProductImage({ src, alt, sizes, className, priority }: ProductImageProps) {
-  const [failed, setFailed] = useState(false)
-
-  // При смене товара (src) сбрасываем состояние ошибки
-  useEffect(() => {
-    setFailed(false)
-  }, [src])
-
-  const showLogo = !src || failed
+  const [failedSource, setFailedSource] = useState<string | null>(null)
+  const [failedPreview, setFailedPreview] = useState<string | null>(null)
+  const showLogo = !src || failedSource === src
 
   if (showLogo) {
     return (
@@ -40,6 +38,23 @@ export default function ProductImage({ src, alt, sizes, className, priority }: P
     )
   }
 
+  const variants = previews[src!]
+  if (variants?.length && failedPreview !== src) {
+    return (
+      <img
+        src={variants[Math.min(1, variants.length - 1)].src}
+        srcSet={variants.map(image => `${image.src} ${image.width}w`).join(", ")}
+        sizes={sizes || "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"}
+        alt={alt}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
+        decoding="async"
+        className={cn("absolute inset-0 h-full w-full object-cover bg-white", className)}
+        onError={() => setFailedPreview(src!)}
+      />
+    )
+  }
+
   return (
     <Image
       src={process.env.NODE_ENV === "development" && src?.startsWith("/uploads/") ? `https://vyborplus.ru${src}` : src}
@@ -49,7 +64,7 @@ export default function ProductImage({ src, alt, sizes, className, priority }: P
       className={cn("object-cover bg-white", className)}
       sizes={sizes || "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"}
       priority={priority}
-      onError={() => setFailed(true)}
+      onError={() => setFailedSource(src!)}
     />
   )
 }

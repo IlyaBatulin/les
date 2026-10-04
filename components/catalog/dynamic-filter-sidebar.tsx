@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { X, SlidersHorizontal } from "lucide-react"
 import type { FilterOptions } from "@/lib/types"
 import { catalogCharacteristics } from "@/lib/characteristics"
+import { catalogFetch } from "@/lib/catalog-fetch"
 
 interface DynamicFilterSidebarProps {
   onFilterChange: (filters: FilterOptions) => void
@@ -40,8 +41,9 @@ export default function DynamicFilterSidebar({
           // API сам разворачивает подкатегории
           params.append("category", selectedCategoryId)
         }
-        const res = await fetch(`/api/products?${params.toString()}`, { signal: controller.signal })
+        const res = await catalogFetch(`/api/products?${params.toString()}`)
         const products = res.ok ? await res.json() : []
+        if (controller.signal.aborted) return
 
         // Извлекаем уникальные КАНОНИЧЕСКИЕ ключи и значения характеристик.
         // Ключи: «thickness» / «Толщина» объединяются в один фильтр.

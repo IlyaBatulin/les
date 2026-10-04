@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { MapPin, Phone, Mail } from "lucide-react"
 import { useState, useEffect } from "react"
+import { catalogFetch } from "@/lib/catalog-fetch"
 
 type Category = {
   id: number;
@@ -19,7 +20,7 @@ export default function Footer() {
     const fetchCategories = async () => {
       try {
         setLoading(true)
-        const res = await fetch("/api/categories?parent=null")
+        const res = await catalogFetch("/api/categories?parent=null")
         if (res.ok) {
           const data = await res.json()
           if (Array.isArray(data) && data.length > 0) {

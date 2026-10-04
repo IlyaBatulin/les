@@ -2,6 +2,9 @@
 const nextConfig = {
   distDir: process.env.NODE_ENV === "development" && process.env.NEXT_DIST_DIR === ".next-audit" ? ".next-audit" : ".next",
   turbopack: { root: process.cwd() },
+  async headers() {
+    return [{ source: '/catalog-previews/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] }]
+  },
   async rewrites() {
     // Zen verification: позволяет обслуживать URL вида /zen_<token>.html через app router
     const rules = [

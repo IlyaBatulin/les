@@ -9,6 +9,7 @@ interface CategoryCardProps {
   imageUrl?: string | null
   className?: string
   productCount?: number
+  imagePriority?: boolean
 }
 
 export default function CategoryCard({
@@ -18,6 +19,7 @@ export default function CategoryCard({
   imageUrl,
   className,
   productCount = 0,
+  imagePriority = false,
 }: CategoryCardProps) {
   return (
     <Link href={`/catalog?category=${id}`} className="block">
@@ -26,6 +28,7 @@ export default function CategoryCard({
           <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-105">
             <ProductImage
               src={imageUrl}
+              priority={imagePriority}
               alt={name}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />

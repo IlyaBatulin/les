@@ -5,7 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { FilterOptions, Product, Category } from "@/lib/types"
+import type { FilterOptions, Product } from "@/lib/types"
+import { catalogFetch } from "@/lib/catalog-fetch"
 import { Search, Filter, X, RefreshCw, ChevronRight, ChevronLeft, Grid, List, SlidersHorizontal } from "lucide-react"
 import DynamicFilterSidebar from "@/components/catalog/dynamic-filter-sidebar"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -53,12 +54,9 @@ function CatalogContent() {
   const [categoryName, setCategoryName] = useState<string>("")
   const [hasSubcategories, setHasSubcategories] = useState(false)
   const [subcategories, setSubcategories] = useState<any[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [currentCategory, setCurrentCategory] = useState<Category | null>(null)
   const [showProducts, setShowProducts] = useState(false)
   const [totalPages, setTotalPages] = useState(1)
   const [paginatedProducts, setPaginatedProducts] = useState<Product[]>([])
-  const [categoryProductCounts, setCategoryProductCounts] = useState<Record<number, number>>({})
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [loadingCategories, setLoadingCategories] = useState(true)
 
@@ -68,7 +66,6 @@ function CatalogContent() {
 
   const [activeFilters, setActiveFilters] = useState<FilterOptions>(initialFilters)
   const [totalFiltersCount, setTotalFiltersCount] = useState(0)
-  const [categoryNames, setCategoryNames] = useState<Record<string, string>>({})
 
   useEffect(() => {
     let count = 0
@@ -80,48 +77,13 @@ function CatalogContent() {
     setTotalFiltersCount(count)
   }, [activeFilters])
 
-  // Загружаем имена категорий и количество товаров
-  useEffect(() => {
-    const loadCategoryData = async () => {
-      try {
-        const [catRes, prodRes] = await Promise.all([
-          fetch("/api/categories"),
-          fetch("/api/products"),
-        ])
-        if (catRes.ok) {
-          const tree = await catRes.json()
-          const flatten = (arr: any[]): { id: number; name: string }[] =>
-            arr.flatMap((c) => [c, ...flatten(c.subcategories || [])])
-          const flat = flatten(tree)
-          const namesMap: Record<string, string> = {}
-          flat.forEach((cat) => {
-            namesMap[String(cat.id)] = cat.name
-          })
-          setCategoryNames(namesMap)
-        }
-        if (prodRes.ok) {
-          const products = await prodRes.json()
-          const counts: Record<number, number> = {}
-          products.forEach((p: { category_id: number }) => {
-            const cid = p.category_id
-            counts[cid] = (counts[cid] || 0) + 1
-          })
-          setCategoryProductCounts(counts)
-        }
-      } catch (e) {
-        console.error("Ошибка загрузки категорий/товаров:", e)
-      }
-    }
-    loadCategoryData()
-  }, [])
-
   // Загрузка подкатегорий
   useEffect(() => {
     const fetchCategoryData = async () => {
       setLoadingCategories(true)
       try {
         if (!categoryParam) {
-          const res = await fetch("/api/categories?parent=null")
+          const res = await catalogFetch("/api/categories?parent=null")
           if (res.ok) {
             const data = await res.json()
             const sorted = [...data].sort((a: any, b: any) => {
@@ -141,11 +103,10 @@ function CatalogContent() {
           return
         }
 
-        const res = await fetch(`/api/categories?id=${categoryParam}`)
+        const res = await catalogFetch(`/api/categories?id=${categoryParam}`)
         if (!res.ok) return
         const categoryData = await res.json()
         setCategoryName(categoryData.name)
-        setCurrentCategory(categoryData as Category)
         const subcats = categoryData.subcategories || []
         if (subcats.length > 0) {
           const sorted = [...subcats].sort((a: any, b: any) => {
@@ -182,7 +143,7 @@ function CatalogContent() {
         return
       }
       try {
-        const res = await fetch(`/api/categories?pathFor=${categoryParam}`)
+        const res = await catalogFetch(`/api/categories?pathFor=${categoryParam}`)
         if (res.ok) {
           const path = await res.json()
           setCategoryPath(path)
@@ -238,7 +199,7 @@ function CatalogContent() {
     try {
       const params = new URLSearchParams()
       if (categoryParam) params.set("category", categoryParam)
-      const res = await fetch(`/api/products?${params.toString()}`)
+      const res = await catalogFetch(`/api/products?${params.toString()}`)
       if (!res.ok) throw new Error("Ошибка загрузки товаров")
       const typedData = (await res.json()) as Product[]
       setAllProducts(typedData)
@@ -625,13 +586,14 @@ function CatalogContent() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {subcategories.map((subcat) => (
+                    {subcategories.map((subcat, index) => (
                       <CategoryCard
                         key={subcat.id}
                         id={subcat.id}
                         name={subcat.name}
                         description={subcat.description}
                         imageUrl={subcat.image_url}
+                        imagePriority={index < 4}
                       />
                     ))}
                   </div>
@@ -665,14 +627,14 @@ function CatalogContent() {
                   
                   {viewMode === "grid" ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {paginatedProducts.map((product) => (
-                        <ProductCard key={product.id} product={product} viewMode="grid" />
+                      {paginatedProducts.map((product, index) => (
+                        <ProductCard key={product.id} product={product} viewMode="grid" imagePriority={index < 4} />
                       ))}
                     </div>
                   ) : (
                     <div className="flex flex-col gap-4">
-                      {paginatedProducts.map((product) => (
-                        <ProductCard key={product.id} product={product} viewMode="list" />
+                      {paginatedProducts.map((product, index) => (
+                        <ProductCard key={product.id} product={product} viewMode="list" imagePriority={index < 2} />
                       ))}
                     </div>
                   )}

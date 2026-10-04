@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test:admin": "node scripts/test-admin.cjs",
     "test:catalog": "node scripts/test-catalog-mail.cjs",
-    "test:db": "node scripts/test-db-tls.cjs"
+    "test:db": "node scripts/test-db-tls.cjs",
+    "test:catalog-cache": "node scripts/test-catalog-cache.cjs",
+    "images:prepare": "node scripts/generate-catalog-previews.cjs"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",

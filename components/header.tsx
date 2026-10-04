@@ -13,6 +13,7 @@ import { useCart } from "@/context/cart-context"
 import { CartDrawer } from "@/components/cart-drawer"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
+import { catalogFetch } from "@/lib/catalog-fetch"
 
 // Обновляем тип Category, чтобы он соответствовал типу в mobile-nav.tsx
 type Category = {
@@ -51,7 +52,7 @@ export default function Header() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await fetch("/api/categories?parent=null")
+        const res = await catalogFetch("/api/categories?parent=null")
         if (!res.ok) return
         const mainCats = await res.json()
         if (Array.isArray(mainCats) && mainCats.length > 0) {
@@ -89,7 +90,7 @@ export default function Header() {
     }
     const fetchSubCategories = async () => {
       try {
-        const res = await fetch(`/api/categories?parent=${activeMainCategory}`)
+        const res = await catalogFetch(`/api/categories?parent=${activeMainCategory}`)
         if (!res.ok) return
         const subCats = await res.json()
         if (Array.isArray(subCats) && subCats.length > 0) {
@@ -128,7 +129,7 @@ export default function Header() {
     }
     const fetchSizes = async () => {
       try {
-        const res = await fetch(`/api/categories?parent=${activeSubCategory}`)
+        const res = await catalogFetch(`/api/categories?parent=${activeSubCategory}`)
         if (!res.ok) return
         const sizesData = await res.json()
         if (Array.isArray(sizesData) && sizesData.length > 0) {

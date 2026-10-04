@@ -5,6 +5,7 @@ import Link from 'next/link'
 import ProductImage from '@/components/product-image'
 import { ArrowRight } from 'lucide-react'
 import { CategorySkeleton } from '@/components/ui/category-skeleton'
+import { catalogFetch } from '@/lib/catalog-fetch'
 
 type Category = {
   id: number;
@@ -23,7 +24,7 @@ export default function HomeCategories() {
     const fetchCategories = async () => {
       try {
         setLoading(true)
-        const res = await fetch('/api/categories?parent=null')
+        const res = await catalogFetch('/api/categories?parent=null')
         const data = res.ok ? await res.json() : null
 
         if (data && Array.isArray(data)) {

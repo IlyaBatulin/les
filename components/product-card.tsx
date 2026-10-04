@@ -13,9 +13,10 @@ import { useLumberPriceCalculation } from "@/hooks/use-lumber-price-calculation"
 interface ProductCardProps {
   product: Product
   viewMode?: "grid" | "list"
+  imagePriority?: boolean
 }
 
-export default function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
+export default function ProductCard({ product, viewMode = "grid", imagePriority = false }: ProductCardProps) {
   const { isLumberProduct } = useLumberCategory()
   const { getPrice } = useLumberPriceCalculation()
   const { priceUnit, handleUnitChange } = useLumberPriceToggle("piece")
@@ -49,6 +50,7 @@ export default function ProductCard({ product, viewMode = "grid" }: ProductCardP
               <div className="relative w-full h-full">
                 <ProductImage
                   src={product.image_url}
+                  priority={imagePriority}
                   alt={product.name}
                   sizes="(max-width: 768px) 100vw, 240px"
                 />
@@ -115,6 +117,7 @@ export default function ProductCard({ product, viewMode = "grid" }: ProductCardP
           <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-105">
             <ProductImage
               src={product.image_url}
+              priority={imagePriority}
               alt={product.name}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />
