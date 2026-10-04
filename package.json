@@ -9,7 +9,8 @@
     "deploy:build": "npm run build",
     "typecheck": "tsc --noEmit",
     "test:admin": "node scripts/test-admin.cjs",
-    "test:catalog": "node scripts/test-catalog-mail.cjs"
+    "test:catalog": "node scripts/test-catalog-mail.cjs",
+    "test:db": "node scripts/test-db-tls.cjs"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",

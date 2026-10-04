@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import fs from "node:fs";
 import path from "node:path";
+import { checkServerIdentity } from "node:tls";
 
 
 /** Парсит DATABASE_URL — без connectionString, чтобы ssl не перезаписывался pg-connection-string. */
@@ -32,9 +33,17 @@ export function getDb() {
   const config = parseDbUrl(cs);
   const localTest = process.env.NODE_ENV !== "production" && process.env.DATABASE_SSL === "disable" && ["127.0.0.1", "localhost"].includes(config.host);
   const ca = fs.readFileSync(path.join(process.cwd(), "certs", "regru-ca.pem"));
+  const tlsHost = process.env.DATABASE_TLS_SERVERNAME || config.host;
   pool = new Pool({
     ...config,
-    ssl: localTest ? false : { ca, rejectUnauthorized: true, ...(process.env.DATABASE_TLS_SERVERNAME ? { servername: process.env.DATABASE_TLS_SERVERNAME } : {}) },
+    ssl: localTest ? false : {
+      ca,
+      rejectUnauthorized: true,
+      // pg wraps an existing socket without a TLS hostname for IP connections.
+      // Validate against the configured database address, not Node's localhost fallback.
+      checkServerIdentity: (_hostname, certificate) => checkServerIdentity(tlsHost, certificate),
+      ...(process.env.DATABASE_TLS_SERVERNAME ? { servername: process.env.DATABASE_TLS_SERVERNAME } : {}),
+    },
     max: localTest ? 1 : 10,
     connectionTimeoutMillis: 10000,
   });
